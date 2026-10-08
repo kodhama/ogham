@@ -14,14 +14,16 @@ requirements: [R6, R4]
 
 | Principle | Strength | What it changes for U3 |
 |---|---|---|
-| P1 Pure by default | **Strong design argument** for testability. **Contested** for "fewer bugs" | Lead the rationale with testability. Read the clock at the edge, pass the time in. Name the performance exception |
-| P2 Effects and mutation marked | **Design argument**, an old convention | Mark effects by name, not heavy annotation. Name the CQS exceptions (pop) |
-| P3 Thin effectful code | **Design argument only** | Allow a named exception for simple cohesive transactions, cohesion cost, or data too big to load first |
-| P4 Immutable by default | **Indirect** for module-level state (one study of true globals). **Design argument, contested on usability** for the rest | Say "don't mutate", not "declare readonly". TypeScript `readonly` is shallow |
-| P5 Functions as first-class values | **Contested** on readability | Pass behaviour where it removes duplication. Keep lambdas short and non-capturing |
+| P1 Pure by default | **Design argument** for testability. **Contested** for "fewer bugs" | Lead the rationale with testability. Read the clock at the edge, pass the time in. Propose a marked performance exception |
+| P2 Effects and mutation marked | **Design argument**, an old convention | Keep Math Quest 16's four markers; no type-level effect system. CQS cases such as pop are marked by name |
+| P3 Thin effectful code | **Design argument only** | Answer Transaction Script in the rationale. Two possible exceptions (cohesion cost, data too big to load first) are Gonçalo's call |
+| P4 Immutable by default | **Indirect** for module-level state (one study of true globals). **Design argument, contested on usability** for the rest | State the rule as "don't mutate". Keep `readonly` as the marker, and say it is shallow, not a guarantee |
+| P5 Functions as first-class values | **Contested** on readability | Pass behaviour where it removes duplication. Keep lambdas short; they mutate nothing they capture except local building |
 | P6 Data apart from behaviour | **Design argument, contested** by an OO school and one case study | Name the anemic-model objection and answer it, including where business rules live |
 | P7 Agents and isolated code | **Indirect** (proxy evidence, models not agents) | Models do better on self-contained code. Do **not** claim they do better in FP languages |
 | Ray 2014 / Berger 2019 | Citations **confirmed**, with corrections | The Product Contract's "contested" holds. Add DOIs; note the rebuttals |
+
+**Every exception named below is a marked effect, never a silent carve-out**, as Math Quest 11 already does for `shuffleInPlace`: it carries P2's markers, and where lint fires it needs a code-level exception naming the effect (R14). **Exceptions that would narrow a rule are proposals for Gonçalo at U3**, not decisions (R6). **U3 decides where each suggestion lands:** the 900-word core, the TypeScript page or the rubric.
 
 Strength labels are this document's judgement, not the sources' words: **supported** means at least one empirical study backs the claim; **contested** means credible sources disagree; **design argument** means practitioner reasoning with no empirical test found; **indirect** means the evidence measures a nearby thing, not the claim itself.
 
@@ -30,11 +32,12 @@ Strength labels are this document's judgement, not the sources' words: **support
 ## Method
 
 - **Scope:** the five R1 principles, R2's data/behaviour split, the agents question (U1 step 3) and the Ray/Berger check (U1 step 4). Math Quest rules 11–16 are folded into P1–P4 as the plan maps them.
-- **Leads (deviation from KTD12):** KTD12 and D16 said Gemini finds sources. Headless `agy` 1.2.10 returned empty output on all eight lead runs, and the maintainer ruled (D18, hq records) that **Claude WebSearch and WebFetch find the leads instead**. One Claude subagent per topic searched and enumerated sources as title, URL, stance and verbatim quote, with at least one dissenting source where one exists. Everything else in KTD12 is unchanged.
+- **Leads (deviation from KTD12):** KTD12 and D16 said Gemini finds sources. Headless `agy` 1.2.10 returned empty output on all eight lead runs, and the maintainer ruled (D18, hq records) that **Claude WebSearch and WebFetch find the leads instead**. One Claude subagent per topic searched and enumerated sources as title, URL, stance and verbatim quote, with at least one dissenting source where one exists. One other difference from KTD12's "the worker reads each source": see **Reading** below.
 - **Budget:** six sources considered per topic, two to four cited. The considered-but-not-cited ones are listed at the end of each section.
 - **Quote check:** WebFetch passes pages through a summariser, so it is not proof of a verbatim quote. Every quote was checked by a script that downloads the raw page or PDF with `curl`, extracts its text, and matches the quote after normalising whitespace, typographic quotes, ligatures and line-break hyphens (wording must match). The subagents ran it on every quote; the worker re-ran it on a fresh download. **82 of 84 quotes matched on the re-run.** The two exceptions are from Rytz et al. (P2): the EPFL server now answers `curl` with an empty `202`, and both quotes matched the copy fetched an hour earlier.
 - **Paywalls:** `dl.acm.org` and `cacm.acm.org` refuse `curl` (403). ACM papers are cited from the authors' own copies, arXiv, or the Crossref DOI record, and the DOI is given.
-- **Reading:** the worker read the surrounding text of every quote that carries a strength label or a dissent, and checked the rest against the abstract or passage they come from. The subagents' stance labels were changed where context disagreed (noted inline).
+- **Reading:** the worker read the surrounding text of every quote that carries a strength label or a dissent, and checked the rest against the abstract or passage they come from. Uesbeck 2016 and Nielebock 2019 were read as abstracts only (paywalled). The subagents' stance labels were changed where context disagreed (noted inline).
+- **Doc review:** `ce-doc-review` ran coherence, feasibility and adversarial reviewers (Claude) on the revised draft: 13 findings, all accepted, merged into 10 fixes. Its cross-model pass was skipped because Codex Sol had already reviewed this document.
 - **Check:** Codex Sol (gpt-5.6-sol, high effort, web search, read-only) checked the citations and looked for counter-evidence: 19 findings. The worker checked every evidence quote it gave with the same script (all 18 matched), read their context, and triaged each one; 18 were accepted, 1 partly (its source was secondary, see P4). Counter-evidence that came from this check is marked **(from the citation check)** and sits outside the six-lead budget. The triage is attached to the PR.
 
 ---
@@ -49,13 +52,13 @@ Strength labels are this document's judgement, not the sources' words: **support
 - **Oracle, `java.time.Clock` API docs (Java SE 8).** "Best practice for applications is to pass a Clock into any method that requires the current instant." <https://docs.oracle.com/javase/8/docs/api/java/time/Clock.html>
 - **Hughes, "Why Functional Programming Matters" (1989).** He lists the usual benefit, "A function call can have no effect other than to compute its result. This eliminates a major source of bugs…", then warns: "Such a catalogue of "advantages" is all very well, but one must not be surprised if outsiders don't take it too seriously." <https://www.cse.chalmers.se/~rjmh/Papers/whyfp.pdf>
 
-**Strength:** **strong design argument for testability and reasoning; contested for defect reduction.** The testability case is broad practitioner consensus plus an official language API built for it, but no empirical study of it was found. One practitioner dissents on the means: Holub (P3) argues that "if your goal is to facilitate testing without mocking, architecting your solution for high-level testing is likely going to be a much better time investment." The defect case rests on language-level studies whose effect did not survive reproduction (see Ray/Berger below). Hughes, a founder of the field, makes the same point: absence of side effects is a weak sell; his case is modularity.
+**Strength:** **design argument for testability and reasoning; contested for defect reduction.** The testability case is broad practitioner consensus plus an official language API built for it, but no empirical study of it was found. One practitioner dissents on the means: Holub (P3) argues that "if your goal is to facilitate testing without mocking, architecting your solution for high-level testing is likely going to be a much better time investment." The defect case rests on language-level studies whose small effect is disputed after reproduction (see Ray/Berger below). Hughes, a founder of the field, makes the same point: absence of side effects is a weak sell; his case is modularity.
 
 **Suggested changes:**
 - **Lead the rationale with testability and local reasoning**, not "fewer bugs".
 - **Use the clock as the canonical hidden-input example.** Java's docs say to "pass a Clock into any method that requires the current instant". But a passed-in live clock is still an effect: "Applications use an object to obtain the current time rather than a static method." So the effectful edge reads the clock, and the pure core receives the time as a value.
-- **Name a performance exception (from the citation check).** Carmack, in the same essay: "Programming with pure functions will involve more copying of data, and in some cases this clearly makes it the incorrect implementation strategy due to performance considerations." Large in-place updates are a legitimate, marked effect.
-- **No source was found on injecting randomness** (a seeded generator passed in). Keep it in the rule as a design argument by analogy with the clock.
+- **Name a performance exception (from the citation check).** Carmack, in the same essay: "Programming with pure functions will involve more copying of data, and in some cases this clearly makes it the incorrect implementation strategy due to performance considerations." Propose large in-place updates as an allowed effect when marked, as Math Quest 11 allows `shuffleInPlace`.
+- **No source was found on injecting randomness.** Math Quest 16 already has core code take "a `now`, a seed" as parameters; keep that as a design argument by analogy with the clock.
 
 **Considered, not cited:** Ray et al. 2014 and Berger et al. 2019 (covered in their own section).
 
@@ -74,9 +77,9 @@ Strength labels are this document's judgement, not the sources' words: **support
 **Strength:** **design argument.** Command-query separation and side-effect naming are long-standing conventions with official-language endorsement (Swift). No study measuring defects was found. The dissent is about cost, not direction: type-level effect systems are verbose (Rytz).
 
 **Suggested changes:**
-- **Mark direct effects by name and placement, not by annotation weight.** That fits the Rytz finding and the TypeScript reality (no effect types).
+- **Keep Math Quest 16's four markers:** name, `readonly` type, an `Effect:`/`Mutates:` docblock line, and place. **Don't add a type-level effect system**; that is the verbosity Rytz et al. found blocks adoption, and TypeScript has none.
 - **Names cannot carry effects that come from arguments.** Rytz et al.: "the effect of a function can depend on the effect its arguments" (sic). A higher-order function is marked by what it does itself; the functions passed to it follow P5 (they capture nothing they mutate).
-- **Name the accepted CQS exceptions** (pop, dequeue, iterator `next`) so a reviewer doesn't flag them.
+- **Name the accepted CQS cases** (pop, dequeue, iterator `next`). They are still marked effects; their names already say so.
 
 **Considered, not cited:** Leijen, Koka effect types (arXiv:1406.2061), which shows effects in the type signature; Coblenz et al. 2016, used under P4.
 
@@ -95,8 +98,8 @@ Strength labels are this document's judgement, not the sources' words: **support
 **Strength:** **design argument only.** Bernhardt states the function-level rule. Cockburn supports it at the architecture level: business logic stays out of the adapters at the system's edge. Neither is an empirical study, and none was found. Both dissents are limits, not reversals. Seemann, the pattern's main advocate, says himself it "starts to buckle" with large data.
 
 **Suggested changes:**
-- **Keep the rule and name its known limits** as legitimate exceptions with a reason: cohesion cost (Holub), data too large to load before deciding, such as streaming or pagination (Seemann), and simple cohesive transactions.
-- **Fowler's Transaction Script is the canonical counter-pattern (from the citation check).** "A Transaction Script organizes all this logic primarily as a single procedure, making calls directly to the database or through a thin database wrapper." <https://martinfowler.com/eaaCatalog/transactionScript.html> The rationale should say why ogham prefers the split even for simple transactions (testability, P1), and when it doesn't pay.
+- **Keep the rule.** The sources name two limits: cohesion cost (Holub) and data too large to load before deciding, such as streaming or pagination (Seemann). Math Quest 15 has no exceptions today, so **whether either becomes a marked exception is an open question for Gonçalo** (see Open questions).
+- **Fowler's Transaction Script is the canonical counter-pattern (from the citation check).** "A Transaction Script organizes all this logic primarily as a single procedure, making calls directly to the database or through a thin database wrapper." <https://martinfowler.com/eaaCatalog/transactionScript.html> The rationale should answer it: ogham keeps the split even for simple transactions, because the decision logic then tests without the database (P1).
 - **Example:** an effectful function whose only branch is whether the effect succeeded.
 
 **Considered, not cited:** Seemann, "Impureim sandwich" (2020); Moseley and Marks, "Out of the Tar Pit" (2006), used under P6.
@@ -113,13 +116,13 @@ Strength labels are this document's judgement, not the sources' words: **support
 - **Selby, Ruffell, Giesbrecht, Godfrey, "Recovering Maintainability Effort in the Presence of Global Data Usage" (WCRE 2007).** "This provides evidence that a strong relationship exists between the usage of global variables and both the number and scope of changes applied to files between product releases." <https://cs.uwaterloo.ca/~mwg/files/wcre2007.pdf>. Two limits. The authors note one themselves: frequent change "may be a sign of successful growth rather than poor design." And the study measures true, cross-module globals; file-scoped statics, the closest match to a JavaScript module-level variable, are excluded (from the citation check).
 - **Eyolfson and Lam, "How C++ Developers Use Immutability Declarations: An Empirical Study" (ICSE 2019, DOI 10.1109/ICSE.2019.00050).** "Best practices for developers, as encoded in recent programming language designs, recommend the use of immutability whenever practical. However, there is a lack of empirical evidence about the uptake of this advice." <https://www.patricklam.ca/papers/19.icse.empirical-static-const.pdf>
 
-**Strength:** **indirect for no module-level state** (one correlational study of cross-module globals and change cost, not defects); **design argument, contested on usability, for immutability in general.** The Coblenz group, the main empirical voice here, says plainly that evidence for immutability's bug-prevention benefit is thin. Their user study does show that **shallow, convention-only immutability fails in practice**, and that compile-time enforcement works.
+**Strength:** **indirect for no module-level state** (one correlational study of cross-module globals and change cost, not defects); **design argument, contested on usability, for immutability in general.** The Coblenz group, the main empirical voice here, points to "the lack of empirical data to justify specific design choices", and no study measuring immutability's effect on defects was found. Their user study does show that **shallow, convention-only immutability fails in practice**, and that compile-time enforcement works.
 
 **Usability counter-evidence (from the citation check):** Weber et al. (IEEE SecDev 2017) report an earlier study by Stylos and Clarke, in which 30 professional programmers "strongly preferred and were more effective in using create-set-call style APIs", and they add that "an immutable object cannot be created using the Create-Set-Call style." Weber et al.'s own conclusion points the other way: their paper brings together results that "aim to show that immutability, when carefully designed using usability as a first-class requirement, can have positive effects on both usability and security." <https://www.cs.cmu.edu/~marmalade/papers/Weber-IEEE-2017.pdf>
 
 **Suggested changes:**
-- **State the rule as behaviour (don't mutate inputs or shared state), not as declarations.**
-- **On the TypeScript page, say that `readonly` and `as const` do not guarantee full immutability**, citing TypeScript itself: "const contexts don't immediately convert an expression to be fully immutable" (TypeScript 3.4 release notes, <https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-4.html>). Coblenz 2016 explains why that matters.
+- **State the rule as behaviour (don't mutate inputs or shared state).** Keep `readonly` as Math Quest 16's mutation marker; it signals intent.
+- **On the TypeScript page, say that `readonly` and `as const` mark intent but do not guarantee full immutability**, citing TypeScript itself: "const contexts don't immediately convert an expression to be fully immutable" (TypeScript 3.4 release notes, <https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-4.html>). Coblenz 2016 explains why that matters.
 - **Lint enforcement is an analogy, not a tested result.** Glacier enforced immutability through the type checker ("Glacier prevented these problems at compile time"). That enforcement beats convention supports having a checker at all; whether a lint preset gets the same effect is untested.
 - **Make immutable construction easy** (builders, object literals, `with`-style copies) so the usability cost Stylos and Clarke found doesn't push people back to mutation.
 
@@ -137,12 +140,12 @@ Strength labels are this document's judgement, not the sources' words: **support
 - **Uesbeck et al., "An Empirical Study on the Impact of C++ Lambdas and Programmer Experience" (ICSE 2016).** "Results afford some doubt that lambdas benefit developers and show evidence that students are negatively impacted in regard to how quickly they can write correct programs to a test specification and whether they can complete a task." <https://digitalscholarship.unlv.edu/compsci_fac_articles/6> (abstract page; DOI 10.1145/2884781.2884849)
 - **Nielebock et al., "Programmers do not Favor Lambda Expressions for Concurrent Object-Oriented Code" (EMSE 2019).** "Second, for all three of the languages, we observed that developers compromise their code by applying a significantly higher number of impure, capturing lambda expressions, which are capable of causing race conditions." <https://2018.fseconference.org/details/fse-2018-Journal-First/12/Programmers-do-not-Favor-Lambda-Expressions-for-Concurrent-Object-Oriented-Code> (abstract page; DOI 10.1007/s10664-018-9622-9)
 
-**Strength:** **contested on readability; design argument for modularity.** Developers use lambdas to cut duplication (Mazinanian). Controlled studies find costs: C++ lambda syntax slowed students down (Uesbeck), and automated lambda refactorings lowered model-estimated readability (Lucas et al., below). Nielebock's finding cuts the other way for ogham: the risky lambdas are the **impure, capturing** ones, which P1 already forbids.
+**Strength:** **contested on readability; design argument for modularity.** Developers use lambdas to cut duplication (Mazinanian). Controlled studies find costs: C++ lambda syntax slowed students down (Uesbeck), and automated lambda refactorings lowered model-estimated readability (Lucas et al., below). Nielebock's finding cuts the other way for ogham: in concurrent Java, C# and C++ code, the risky lambdas are the **impure, capturing** ones, which P1 limits to local building.
 
 **Suggested changes:**
 - **Frame P5 as passing behaviour where it removes duplication**, not as always using map and filter.
 - **Prefer a named function over a long inline lambda.**
-- **A passed function captures nothing it mutates.** This links P5 to P1 and cites Nielebock.
+- **A passed function mutates nothing it captures, except a value the enclosing function just built** (local building, Math Quest 12). This links P5 to P1 and cites Nielebock. Ordinary read-only closures such as `xs.map(x => x * factor)` are fine.
 - **A lambda can drop a contract (from the citation check).** Mazinanian et al. found that when a lambda implements an interface method, annotations such as `@NotNull` on that method are no longer visible, "thus increasing the chance of a bug". In TypeScript, give a passed function an explicit type when the inferred one would hide a constraint.
 
 **Considered, not cited:** Oracle Java Tutorials on lambdas (definitional); Lucas et al., JSERD 2020, "Our results suggest that the transformations recommended by the aforementioned tools decrease program comprehension when assessed by two state-of-the-art models to estimate readability" (mixed; practitioners rated some transformations better).
@@ -185,9 +188,9 @@ Strength labels are this document's judgement, not the sources' words: **support
 **A limit (from the citation check):** when a function does depend on others, the remedy is to give the model that context, not to hide it. RepoExec (Hai, Nguyen, Bui, NAACL Findings 2025) found that "retaining full dependency context yields the best performance, while smaller context sizes can be misleading." <https://aclanthology.org/2025.findings-naacl.82/> **FPEval cuts against a different claim:** models make more errors in purely functional *languages*, and default to imperative patterns.
 
 **Suggested changes:**
-- **The core may say models generate self-contained functions more reliably**, citing CoderEval and ClassEval, labelled as evidence about dependencies, not purity, and about models, not agents.
+- **The core may say models generate self-contained functions more reliably**, citing CoderEval, labelled as evidence about dependencies, not purity, and about models, not agents. ClassEval shows a related drop from method-level to class-level tasks, not a dependency effect. Neither shows that restructuring the same code helps; they compare different tasks.
 - **Do not claim agents do better in functional languages.** The evidence says the opposite.
-- **FPEval's "imperative patterns" finding argues for the lint preset and rubric.** Agents won't write this style unprompted.
+- **FPEval found that models writing functional languages often fall back to imperative patterns.** That is suggestive, not tested for agents or TypeScript, and is one reason for the lint preset and rubric.
 
 **Considered, not cited:** Maaz et al., "Agentic Property-Based Testing" (2025), an agent that infers function properties and found real bugs (56% of reports valid), relevant but not split by purity; Pomian et al. (2024), LLM extract-method suggestions "up to 76.3%" hallucinations, not split by side effects.
 
@@ -203,9 +206,15 @@ The Product Contract cites both from memory. **Both are confirmed; the details b
 - **Ray, Devanbu, Filkov, "Rebuttal to Berger et al., TOPLAS 2019" (arXiv:1911.07393, not peer-reviewed).** "We find that Berger et al. largely replicated our results, and agree with us in their conclusion: that the effects (in a statistical sense) found in the data are small, and should be taken with caution, and that it is possible that an absence of effect is the correct interpretation."
 - **Berger, Maj, O. Vitek, J. Vitek, "FSE/CACM Rebuttal²" (arXiv:1911.11894, not peer-reviewed).** "After data cleaning and statistical improvements, our analysis shows only one language with a positive association with errors (C++) and three with a negative association (Clojure, Haskell, and Ruby)."
 
-**Verdict:** the Product Contract's framing, that large-scale evidence of fewer bugs "is contested" and "the testability argument is the stronger ground", **is accurate and should stay.** Both sides agree any effect is small. **Correct the citation** with the DOIs above, and drop "cited from memory, unverified". The article number comes from a published bibliography (LIPIcs ECOOP 2021: "ACM Trans. Program. Lang. Syst., 41(4):21:1–21:24, 2019"); Crossref gives volume, issue and pages only.
+**Verdict:** the Product Contract's "is contested" **is confirmed**: both sides agree any defect effect is small. Its "the testability argument is the stronger ground" is a judgement this pass did not test; P1 found no empirical study of testability, only design argument. **Correct the citation** with the DOIs above, and drop "cited from memory, unverified". The article number comes from a published bibliography (LIPIcs ECOOP 2021: "ACM Trans. Program. Lang. Syst., 41(4):21:1–21:24, 2019"); Crossref gives volume, issue and pages only.
 
 ---
+
+## Open questions for U3 (Gonçalo's call)
+
+- **P3 exceptions.** Should cohesion cost (Holub) or data too large to load first (Seemann) become marked exceptions to Math Quest 15? Each one widens what reviewers accept. Recommendation: neither in v1; a code-level exception (R14) already covers a real case.
+- **P6 invariants.** Where does R2-style code enforce the invariants of a complex entity and keep business rules in one place? One option is constructor or validator functions that return plain data. This is the strongest form of the anemic-model objection, and U3 needs an answer before writing the R2 entry.
+- **P1 performance exception.** Allow marked in-place updates for performance, as Math Quest 11 does for `shuffleInPlace`? Recommendation: yes, as a marked effect only.
 
 ## Gaps
 
