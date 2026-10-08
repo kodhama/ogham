@@ -1,0 +1,13 @@
+# Project-scope Codex configuration. Codex loads this file only for trusted
+# projects; it overrides user-level defaults for this repo.
+
+# The plugins come from user-level marketplaces, which AGENTS.md says how to
+# register.
+[plugins."compound-engineering@compound-engineering-plugin"]
+enabled = true
+
+[plugins."trellis@kodhama"]
+enabled = true
+
+[plugins."grove@grove"]
+enabled = true
