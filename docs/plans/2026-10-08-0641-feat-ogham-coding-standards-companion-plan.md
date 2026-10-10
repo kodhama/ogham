@@ -227,7 +227,7 @@ This plan covers the companion's shape and its first standard, coding practices.
   - **Invocation:** `npx github:kodhama/ogham#v<version> <command>`, with four commands: `install`, `update`, `check`, `remove` (D19). It is non-interactive throughout, so a routine can run `update` across repos and open one PR each.
   - **`remove`** undoes what the lock records `install` added. It deletes `.ogham/`, every ogham block, the lines ogham inserted, and the `ogham/*` entries in the bulk-suppressions file, so lint stays green. A file ogham created is deleted only when nothing but ogham's content is left in it. `remove` keeps `ogham.local.md`, leaves Trellis alone, and lists the dev dependencies `install` added without uninstalling them. It uses the same clean-paths refusal and rollback as `install`, and the KTD8 gate confirms the repo's own rules are unchanged. U6 owns the command and its rollback, and U7 and U9 add their own steps to it.
   - **`install` on an adopted repo** (a lock is present) writes nothing. It reports "already adopted", points to `update`, and exits zero.
-  - **Clean paths:** it refuses when any path it would touch has uncommitted changes. That precondition is what makes rollback safe: on any refusal after writing, it restores every touched path from git, including `package.json` and the lockfile.
+  - **Clean paths:** it refuses when any path it would touch has uncommitted changes. The one exception is drift in ogham-owned files, which goes to `update`'s tamper check instead (KTD5), so `--force` stays reachable. That precondition is what makes rollback safe. On any refusal after writing, it restores every pre-existing touched path from git, including `package.json` and the lockfile, and deletes every path it created that did not exist before.
   - **Diffs** come from `git diff`.
   - **Runtime:** it uses Node built-ins, git, and the target repo's own ESLint (KTD8).
 
@@ -235,7 +235,7 @@ This plan covers the companion's shape and its first standard, coding practices.
 - KTD5. **Pinning and read-only are enforced by hashes in `.ogham/lock.json`, checked offline by the vendored `check.mjs`.**
   - **The lock records:** the version; the source commit; a sha256 per owned file over LF-normalised content; one hash per placed block (keyed by file); the per-repo choices (languages, preset on or off); and what `install` added outside `.ogham/`, so that `remove` can undo exactly that. That means the files it created, the lines it inserted (config spread, lint-script step, `.prettierignore` entry) and the dev dependencies it added. The lock records nothing about Trellis (KTD6).
   - **`update`** shows the diff of every owned file, and the same tag gives no diff.
-  - **A local edit** to an owned file stops `update`, which shows the edit. The way out is to move the change to `ogham.local.md`, or to pass `--force`.
+  - **A local edit** to an owned file, committed or not, stops `update`, which shows the edit. The way out is to move the change to `ogham.local.md`, or to pass `--force`, which reports what it discards.
   - **`check`** exits non-zero on: a hash mismatch; a missing or altered block; an `og-` reference in `ogham.local.md` that the core does not define; a duplicate `local-` ID; or a disable directive without a reason (KTD7). On a mismatch it also says that a formatter may have caused it.
   - **Formatter:** the bootstrap adds `.ogham/` to `.prettierignore` when that file exists. The agents block guards itself (KTD2).
 
@@ -272,7 +272,8 @@ This plan covers the companion's shape and its first standard, coding practices.
   - **Bulk suppressions:** existing violations of `ogham/*` rules become ESLint bulk suppressions, the pattern Math Quest's fp-standard D6 chose. They are keyed to `ogham/*` IDs only, so suppression capacity can never cover a repo rule. The suppressions file can only shrink.
 - KTD10. **The bootstrap makes sure lint runs; the repo's own CI decides when.**
   - **The lint script:** the bootstrap adds a `lint` script when there is none, and appends `node .ogham/check.mjs` to it when it is a plain command. Any other script shape is reported with the line to add.
-  - **No ESLint, or no TypeScript parser:** it adds `eslint` and `typescript-eslint` as dev dependencies with the repo's package manager, installs them inside the rollback scope, and writes a minimal config: `eslint.config.mjs` unless the repo is `"type": "module"`. With no prior lint config there is nothing to weaken, so the comparison is skipped.
+  - **No ESLint:** it adds `eslint` and `typescript-eslint` as dev dependencies with the repo's package manager, installs them inside the rollback scope, and writes a minimal config: `eslint.config.mjs` unless the repo is `"type": "module"`. With no prior lint config there is nothing to weaken, so the comparison is skipped.
+  - **ESLint but no TypeScript parser:** it adds and installs `typescript-eslint` only, inside the rollback scope. It then takes the normal path: the preset goes into the existing config, and the KTD8 gate compares the repo's effective config before and after. The repo's existing config is never replaced.
   - **No CI step runs lint:** it reports that and does not edit CI.
 - KTD11. **Exemptions live in `ogham.local.md` and pair with lint where lint is involved.**
   - **An exemption entry** names the `og-` ID, its scope and the reason.
@@ -588,7 +589,8 @@ An unrecognised lint-config shape changes one step. `apply` vendors everything e
 - `install` on an empty repo writes `.ogham/coding/*`, `check.mjs` and `lock.json`, and hashes in the lock match the files.
 - `update` to the same tag reports no diff and writes nothing.
 - `update` to a newer tag shows a diff for each changed owned file and leaves `ogham.local.md` byte-identical. Covers AE3.
-- `update` when an owned file was edited locally stops and shows that edit. With `--force` it overwrites and reports what it discarded.
+- `update` when an owned file was edited locally stops and shows that edit, whether or not the edit was committed. The clean-path check does not block this case. With `--force` it overwrites and reports what it discarded.
+- A refusal after writing during a first `install` deletes the files it created (`.ogham/`, `ogham.local.md`, a new `AGENTS.md` or `CLAUDE.md`), leaving `git status` clean.
 - `check` and `.ogham/check.mjs` both exit zero on a clean adoption. Both exit non-zero on an edited owned file, and on a lock whose commit does not match its tag.
 - `install` when a path it would touch has uncommitted changes refuses and writes nothing.
 - `remove` deletes `.ogham/` (lock and `check.mjs` included), keeps `ogham.local.md` byte-identical, touches only the paths the lock lists, and refuses on uncommitted changes as `install` does. A failure partway restores every touched path.
@@ -697,7 +699,7 @@ An unrecognised lint-config shape changes one step. `apply` vendors everything e
 - A repo with existing `Date.now()` calls in source lints green after install. The suppressions file lists those counts under `ogham/no-restricted-properties` alone, and a new repo-rule violation is not absorbed by them.
 - A repo with an existing unused disable directive stops at the preflight, listing it, and writes nothing.
 - A repo with no ESLint (wisp's shape) gets ESLint, typescript-eslint, a minimal config and a `lint` script ending in `check.mjs`. Covers AE4.
-- A repo with ESLint but no TypeScript parser gets typescript-eslint added.
+- A repo with ESLint and a config but no TypeScript parser gets `typescript-eslint` added and keeps its config. The gate compares its effective config before and after, and dropping one of its JavaScript rules is refused.
 - A `"type": "commonjs"` repo gets `eslint.config.mjs`, and the `.mjs` preset loads.
 - A repo with no installed dependencies, outside the no-ESLint branch, stops before the gate with an instruction to install them.
 - A config wrapped in a function (Math Quest's `withKnowledgeBoundary([...])` shape) gets everything except the config edit, plus a pending baseline. After the import is added by hand, the next run completes the gate against that baseline.
