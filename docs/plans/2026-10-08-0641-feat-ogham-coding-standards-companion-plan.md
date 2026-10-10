@@ -17,7 +17,13 @@ execution: code
 - A "Deferred to Follow-Up Work" subsection under Scope Boundaries holds plan-local deferrals.
 - The Ray/Berger assumption notes that U1 verifies it.
 
-**Records outside this repo:** the rulings cited as D1–D16 are in the maintainer's hq records. D1–D13 are in `areas/coding-standards/decisions.md` and D14–D16 in `areas/ogham/decisions.md`. The work item is KOD-5.
+**Revised 2026-10-10 for D19 and D20 (Kodhama install model, TRL-107):**
+- The CLI's commands are `install | update | check | remove`. `init` is renamed, and `remove` is new.
+- Trellis is adopted through Trellis's own CLI instead of ogham's S0–S6 probe (KTD6, U8). U8 waits for that CLI's tag.
+- The core is inlined once into `AGENTS.md` instead of reached by a pointer (KTD2, U7).
+- Three Product Contract lines changed, with no scope change: R8's "adds pointers" now reads "places the standard"; the staleness deferral names the cross-repo routine; and the Trellis dependency names Trellis's CLI.
+
+**Records outside this repo:** the rulings cited as D1–D20 are in the maintainer's hq records. D1–D13 are in `areas/coding-standards/decisions.md` and D14–D20 in `areas/ogham/decisions.md`. The work item is KOD-5.
 
 ---
 
@@ -28,7 +34,7 @@ execution: code
 - **Product authority:** Gonçalo. The Product Contract's R-IDs win on behaviour; a KTD wins on mechanism within them; a unit overrides neither.
 - **Stop conditions:**
   - after U1 (research), stop until Gonçalo approves this plan;
-  - stop and ask when evidence shows a settled decision (D1–D16) cannot work, or a requirement cannot be met as written. That includes U10's reviewer-pointer and Codex checks;
+  - stop and ask when evidence shows a settled decision (D1–D20) cannot work, or a requirement cannot be met as written. That includes U10's reviewer-pointer and Codex checks;
   - stop at every merge and at the v1 tag: Gonçalo approves both.
 - **Execution profile:** one worker, units in dependency order. After U3, the content units (U4) and the tooling units (U5–U9) can run as two streams; whether to staff them as a team is majordomo's call.
 - **Who finishes:** the worker opens each PR as a draft and marks it ready when the branch is final; Gonçalo merges and approves the v1 tag.
@@ -77,7 +83,7 @@ No specific failures have been observed — nobody looked — so the companion i
 **Delivery**
 
 - R7. One bootstrap step, runnable by Gonçalo or by an agent, adopts the companion into a repo and makes sure Trellis is adopted too, leaving an existing Trellis adoption as it is.
-- R8. The bootstrap vendors a pinned version of the core and the relevant per-language pages, adds pointers that both the writing agent and the reviewing agent read, and installs the lint preset where the repo's language has one.
+- R8. The bootstrap vendors a pinned version of the core and the relevant per-language pages, places the standard where both the writing agent and the reviewing agent read it, and installs the lint preset where the repo's language has one.
 - R9. An adopted repo behaves the same in a local session and in a cloud session, with no machine-level setup.
 - R10. Updating means re-running the bootstrap, which shows the diff of every ogham-owned file and never touches the project's local layer.
 - R11. v1 ships a lint preset for TypeScript only; other languages get the prose and the rubric.
@@ -121,7 +127,7 @@ No specific failures have been observed — nobody looked — so the companion i
 
 - The code-organisation standard (folders, import structure) and the architecture/repo-structure standard — named next entries per R18.
 - Lint presets for Go, Python and other languages.
-- Any automatic check that a vendored copy has fallen behind the latest core.
+- Any automatic check that a vendored copy has fallen behind the latest core. Under D19 staleness is advisory only; a cross-repo routine outside ogham runs `update` and opens one PR per repo.
 
 **Outside this product's identity**
 
@@ -139,7 +145,7 @@ No specific failures have been observed — nobody looked — so the companion i
 
 ### Dependencies / Assumptions
 
-- The bootstrap depends on Trellis's install path; if Trellis's delivery changes, the bootstrap follows.
+- `install` adopts Trellis by calling Trellis's own CLI, `npx github:kodhama/trellis#v<version> install` (D19). TRL-107 builds that CLI; U8 waits for its tag.
 - Trellis's cloud path is Claude-only today; Trellis does not yet support Codex (trellis `README.md`, "Local Codex — carried, not supported"). Ogham's own vendored files work on any host; the Trellis half of R9 holds only where Trellis does.
 - The rubric only bites where grove or a repo-level review loop runs.
 - Gonçalo's thesis — functional style yields more testable, less bug-prone code that agents refactor more easily — is his stated belief. Large-scale evidence that it reduces bugs is contested (Ray et al. 2014; Berger et al. 2019 reproduction — cited from memory, unverified; U1 verifies); the testability argument is the stronger ground.
@@ -160,7 +166,7 @@ This plan covers the companion's shape and its first standard, coding practices.
 **Resolved in planning** (each answered by the KTD named)
 
 - The bootstrap's form and how it composes with Trellis's installer: KTD4, KTD6.
-- How the pointers reach the reviewing agent: KTD2.
+- How the standard reaches the writing and reviewing agents: KTD2.
 - The versioning scheme and pinning: KTD5.
 - How the core and per-language pages are split and named: KTD1, KTD3.
 - How the preset composes with existing lint without weakening it (R19): KTD7, KTD8.
@@ -175,7 +181,7 @@ This plan covers the companion's shape and its first standard, coding practices.
 
 ### Sources / Research
 
-- Gonçalo's rulings for this plan: hq `areas/coding-standards/decisions.md` (D1–D13) and `areas/ogham/decisions.md` (D14–D16).
+- Gonçalo's rulings for this plan: hq `areas/coding-standards/decisions.md` (D1–D13) and `areas/ogham/decisions.md` (D14–D20).
 - Math Quest functional standard: rules 11–16 in math-quest `docs/code-organisation.md`, enforced by `eslint/pure-by-default.js` and the reviewer; rulings in hq `areas/fp-standard/decisions.md` (D1–D6); PR kodhama/math-quest#883 (MQ-384).
 - Math Quest review criteria for its review agent: math-quest `CODING_STANDARDS.md`.
 - Trellis adoption and configuration limits: trellis `docs/decisions/` — decision-0077 (silence never adopts; supersedes part of decision-0070), decision-0073 (delivery states are a closed set), 2026-09-15 rule-rows-only (projects can only switch rules off), decision-0068 (no personal-scope rules file).
@@ -193,46 +199,58 @@ This plan covers the companion's shape and its first standard, coding practices.
   - Beside it sit `.ogham/lock.json` and `.ogham/check.mjs`, a vendored copy of the `check` command (KTD5).
   - The project's local layer is `ogham.local.md` at the repo root: created once from a template, never touched again.
   - A later standard joins as a sibling folder, so adoption does not change (R18).
-- KTD2. **Hook-in is a marked block holding only a stable pointer** (D15). Blocks are marked `<!-- ogham:begin -->` and `<!-- ogham:end -->` and come in two variants:
-  - **The agents block** carries pointers to the core, the language pages, the rubric (reviewers grade diffs against it and cite rule IDs) and `ogham.local.md`. It also carries `@` imports of the core and the local layer, so Claude loads both in every session.
+- KTD2. **Hook-in is a marked block; the agents block carries the core inline, once** (D20, superseding D15's pointer-only block). Blocks are marked `<!-- ogham:begin -->` and `<!-- ogham:end -->` and come in three variants:
+  - **The agents block** carries the core's text inline. It also carries pointers to the language pages, the rubric (reviewers grade diffs against it and cite rule IDs) and `ogham.local.md`, plus an `@` import of `ogham.local.md` so Claude loads the local layer too. Codex can't follow `@` imports and reads only the first 32 KiB of `AGENTS.md`, which is why the core is inline.
+  - **The Claude block** carries `@` imports of the core and `ogham.local.md`, plus the same pointers to the language pages and the rubric. It never holds a second inline copy of the core.
   - **The reviewer block** carries the rubric pointer and the `ogham.local.md` pointer only.
 
   **Placement rules:**
   - The agents block goes into `AGENTS.md`, which Codex reads directly and Claude reads through `CLAUDE.md`'s `@AGENTS.md`.
   - `AGENTS.md` is created when absent.
-  - `CLAUDE.md` is created as one `@AGENTS.md` line when absent. When it exists without that import, the agents block goes into `CLAUDE.md` too.
+  - `CLAUDE.md` is created as one `@AGENTS.md` line when absent. When it exists without that import, it gets the Claude block.
   - The reviewer block goes into `CODING_STANDARDS.md` only where that file exists, because ce-code-review treats it as its designated criteria source ahead of `AGENTS.md`. Ogham never creates `CODING_STANDARDS.md`, which would shadow a repo's `AGENTS.md` criteria.
 
   **Marker handling:** a block sits beside other tools' blocks, never inside one, and duplicated or broken ogham markers stop the run.
 
-  (session-settled: user-directed — chosen over a managed block carrying the core inline: ogham then rarely rewrites his files, and the markers keep the region removable)
+  **Size:** `install`, `update` and `check` warn, without failing, when the ogham block's end marker sits past byte 32,768 of `AGENTS.md`, because Codex would not read the rest of the core. The block is appended, so the core sits at the file's tail. `check` repeats the warning after Trellis's block lands. Whether Codex's cap applies per file or across the chain of `AGENTS.md` files is checked at U10.
+
+  **Formatters:** the agents block wraps the inline core in `<!-- prettier-ignore-start -->` and `<!-- prettier-ignore-end -->`, so Prettier leaves it alone. A block-hash mismatch says that a formatter may have caused it, as KTD5 does for owned files.
+
+  **Links:** the core holds no relative links, because it is read inline from the repo root. It names other pages by their repo-root path, such as `.ogham/coding/typescript.md`.
+
+  (session-settled: user-approved, D20. Inlining once follows the Kodhama install model. It was chosen over keeping D15's pointer and over deciding at U10, because a pointer risks Codex never loading the core. A block that changes on update is acceptable when updates arrive as reviewed PRs.)
 - KTD3. **Rule IDs are stable slugs: `og-` for the core, `local-` for a project's own rules.** An example is `og-no-hidden-inputs`. An `og-` ID is never reused.
   - Lint messages, rubric findings, exemptions and local tightenings cite the slug.
   - A project-only rule in `ogham.local.md` takes a `local-` ID, unique within that file (R13).
   - Math Quest's bare rule numbers are ambiguous outside their file, so they are not reused.
 - KTD4. **The bootstrap is a zero-dependency Node script, run by version tag; writes are applied, verified, then rolled back on refusal.**
-  - **Invocation:** `npx github:kodhama/ogham#v<version> <command>`, with three commands: `init`, `update`, `check`.
+  - **Invocation:** `npx github:kodhama/ogham#v<version> <command>`, with four commands: `install`, `update`, `check`, `remove` (D19). It is non-interactive throughout, so a routine can run `update` across repos and open one PR each.
+  - **`remove`** undoes what the lock records `install` added. It deletes `.ogham/`, every ogham block, the lines ogham inserted, and the `ogham/*` entries in the bulk-suppressions file, so lint stays green. A file ogham created is deleted only when nothing but ogham's content is left in it. `remove` keeps `ogham.local.md`, leaves Trellis alone, and lists the dev dependencies `install` added without uninstalling them. It uses the same clean-paths refusal and rollback as `install`, and the KTD8 gate confirms the repo's own rules are unchanged. U6 owns the command and its rollback, and U7 and U9 add their own steps to it.
+  - **`install` on an adopted repo** (a lock is present) writes nothing. It reports "already adopted", points to `update`, and exits zero.
   - **Clean paths:** it refuses when any path it would touch has uncommitted changes. That precondition is what makes rollback safe: on any refusal after writing, it restores every touched path from git, including `package.json` and the lockfile.
   - **Diffs** come from `git diff`.
   - **Runtime:** it uses Node built-ins, git, and the target repo's own ESLint (KTD8).
 
   (session-settled: user-approved — chosen over a POSIX shell script: JSON merging and hashing need a real runtime)
 - KTD5. **Pinning and read-only are enforced by hashes in `.ogham/lock.json`, checked offline by the vendored `check.mjs`.**
-  - **The lock records:** the version; the source commit; a sha256 per owned file over LF-normalised content; one hash per placed block (keyed by file); and the per-repo choices (languages, preset on or off, what was done for Trellis).
+  - **The lock records:** the version; the source commit; a sha256 per owned file over LF-normalised content; one hash per placed block (keyed by file); the per-repo choices (languages, preset on or off); and what `install` added outside `.ogham/`, so that `remove` can undo exactly that. That means the files it created, the lines it inserted (config spread, lint-script step, `.prettierignore` entry) and the dev dependencies it added. The lock records nothing about Trellis (KTD6).
   - **`update`** shows the diff of every owned file, and the same tag gives no diff.
   - **A local edit** to an owned file stops `update`, which shows the edit. The way out is to move the change to `ogham.local.md`, or to pass `--force`.
   - **`check`** exits non-zero on: a hash mismatch; a missing or altered block; an `og-` reference in `ogham.local.md` that the core does not define; a duplicate `local-` ID; or a disable directive without a reason (KTD7). On a mismatch it also says that a formatter may have caused it.
-  - **Formatter:** the bootstrap adds `.ogham/` to `.prettierignore` when that file exists.
+  - **Formatter:** the bootstrap adds `.ogham/` to `.prettierignore` when that file exists. The agents block guards itself (KTD2).
 
   The lock model follows the prior art of rulesync's commit-pinned lockfile and ai-rulez's hashed outputs.
-- KTD6. **Trellis is adopted the kodhama-repo way, only on `init`, and only into a repo with no Trellis state** (D16).
-  - **The probe** covers all of decision-0073's states S0–S6. That includes the `trellis-pre-morph` tag and `trellis:begin` markers in any of the five instruction files it names. It also treats `governed = false`, and a `"trellis@kodhama": false` row in `enabledPlugins`, as a recorded decline.
-  - **Any hit** leaves Trellis untouched.
-  - **Otherwise,** `init` announces that it is adopting Trellis (the consent act decision-0077 requires). It then writes the exact two-line `.trellis/rules.toml` seed, and merges `"trellis@kodhama": true` plus the `kodhama` marketplace into `.claude/settings.json`. A `kodhama` marketplace pointing elsewhere stops the run.
-  - **`update` never touches Trellis.**
-  - **Cloud:** the repo-settings plugin path does not reach cloud sessions (trellis `plugins/trellis/README.md`, "does **not** reach cloud"). `init` therefore prints the environment setup script Trellis recommends. That is the Product Contract's "the Trellis half of R9 holds only where Trellis does".
+- KTD6. **Trellis is adopted by Trellis's own CLI, only on `install`** (D19, superseding D16's Trellis clause and this KTD's earlier S0–S6 probe).
+  - **The call:** `install` runs `npx github:kodhama/trellis#v<version> install`, at a Trellis version pinned in ogham's release and recorded in the lock.
+  - **Trellis decides:** its CLI is a no-op on any existing Trellis state and on a recorded decline, and it never re-seeds after a `remove` (Trellis requirements R3 and R6, per trl-107-worker). Ogham no longer probes Trellis's states.
+  - **Order:** it runs last, after ogham's own writes have verified. Ogham's rollback therefore never has to undo Trellis's files, and Trellis does not refuse over ogham's uncommitted files (Trellis R4).
+  - **Outcome:** ogham reports Trellis's one-line outcome. Installed, already present, declined and migrated count as success, and anything else is an error. Plain `install` should never migrate (Trellis R14), but ogham accepts it if reported.
+  - **On a Trellis error,** ogham's own adoption stays in place and `install` exits non-zero. It prints the exact `npx github:kodhama/trellis#v<version> install` command to retry once ogham's files are committed. Re-running ogham's `install` cannot retry, because it reports "already adopted".
+  - **`update` and `remove` never touch Trellis.** Trellis's own `update` and the cross-repo routine own that.
+  - **Cloud:** Trellis's committed files are Trellis's concern. Ogham passes on whatever Trellis's `install` prints.
+  - **Not final:** Trellis's exit codes and verb flags are not fixed until its CLI is tagged (TRL-107).
 
-  (session-settled: user-approved — chosen over running Trellis's curl installer: that vendors a whole Trellis bundle and must pin its bundle source to the same commit)
+  (session-settled: user-approved, D19, via TRL-107. It reverses D16's rejection of Trellis's installer, because the new CLI is pinnable and non-interactive and owns its own state detection.)
 - KTD7. **The TypeScript preset re-registers built-in ESLint rules under an `ogham/` plugin, and checks disable reasons outside ESLint too** (D16).
   - **The rules** are ESLint's own `no-param-reassign`, `no-restricted-properties`, `no-restricted-globals` and `no-restricted-syntax`, taken from `eslint/use-at-your-own-risk` and registered as `ogham/<name>`. They are ported from Math Quest's `eslint/pure-by-default.js` and generalised.
   - **Why distinct IDs:** the repo's own uses of the same built-ins never interact with ogham's. That rules out overriding, shared suppression counts and option collisions (KTD8, KTD9). Verified on ESLint 10.12.0: `ogham/no-restricted-properties` and a repo's `no-restricted-properties` report side by side, each with its own message.
@@ -284,18 +302,19 @@ flowchart LR
     chk["check.mjs — offline check"]
   end
   local["ogham.local.md — project-owned (R13, R14)"]
-  agents["AGENTS.md — agents block"]
-  claude["CLAUDE.md — @AGENTS.md"]
+  agents["AGENTS.md — agents block, core inline"]
+  claude["CLAUDE.md — @AGENTS.md, or the Claude block"]
   cs["CODING_STANDARDS.md — reviewer block, only if the file exists"]
   eslintcfg["eslint.config.* — preset spread in"]
   lintscript["package.json lint script — eslint, then check.mjs"]
-  claude --> agents
-  agents -- "@import (Claude) / pointer (Codex)" --> core
+  claude -- "@AGENTS.md, or Claude block @ imports" --> agents
+  claude -.-> core
+  agents --> lang
+  agents -- "inlines the text of" --> core
   agents --> local
   agents --> rubric
   cs --> rubric
   cs --> local
-  core --> lang
   eslintcfg --> preset
   lintscript --> eslintcfg
   lintscript --> chk
@@ -304,48 +323,47 @@ flowchart LR
   reviewer --> agents
 ```
 
-**What `init` and `update` do.** `check` runs the same verifications read-only, and so does `check.mjs`, offline.
+**What `install` and `update` do.** `check` runs the same verifications read-only, and so does `check.mjs`, offline. `remove` is not drawn.
 
 ```mermaid
 flowchart TD
-  start([init or update]) --> dirty{"touched paths clean?"}
+  start([install or update]) --> dirty{"touched paths clean?"}
   dirty -- no --> stop1[stop: commit or stash first]
   dirty -- yes --> mode{command}
   mode -- update --> tamper{"owned files match lock?"}
   tamper -- no --> stop2[stop: show local edit; move it to ogham.local.md or --force]
   tamper -- yes --> base
-  mode -- init --> trellis{"any Trellis state or decline?"}
-  trellis -- yes --> base
-  trellis -- no --> seed[announce + seed rules.toml + declare plugin; print cloud script]
-  seed --> base
+  mode -- install --> base
   base{"TypeScript root package?"} -- no --> apply
   base -- yes --> eslint{"ESLint and TS parser installed?"}
   eslint -- yes --> before[record before-configs; preflight unused directives]
   eslint -- no --> apply
   before --> apply
-  apply[write owned files, blocks, local layer if absent, config edit, lint script] --> install{"no-ESLint branch?"}
-  install -- yes --> pm[add dev deps + install]
-  install -- no --> verify
+  apply[write owned files, blocks, local layer if absent, config edit, lint script] --> noeslint{"no-ESLint branch?"}
+  noeslint -- yes --> pm[add dev deps + npm install]
+  noeslint -- no --> verify
   pm --> verify
   verify{"gate: repo rules unchanged, no new ignores, ogham rules on or exempted?"} -- no --> rollback[restore every touched path; list each failure]
   verify -- yes --> supp[record bulk suppressions for ogham/* rules]
   supp --> lockw[write lock; show diffs]
+  lockw --> trl{"install?"}
+  trl -- yes --> trellis[run pinned Trellis CLI install; report its outcome]
 ```
 
-An unrecognised lint-config shape changes one step. `apply` vendors everything except the config edit and saves the before-configs as a pending baseline. The run then prints the exact lines to add. The next `init` or `update` detects the added import and finishes the gate against that baseline.
+An unrecognised lint-config shape changes one step. `apply` vendors everything except the config edit and saves the before-configs as a pending baseline. The run then prints the exact lines to add. The next `install` or `update` detects the added import and finishes the gate against that baseline.
 
 ### Output Structure
 
 ```text
 .
-├── bin/ogham.mjs                     # entry: init | update | check
+├── bin/ogham.mjs                     # entry: install | update | check | remove
 ├── src/                              # bootstrap modules (pure core, thin IO shell)
 ├── standard/coding/
 │   ├── core.md
 │   ├── typescript.md
 │   ├── rubric.md
 │   └── eslint/                       # preset + disable-needs-reason rule (.mjs)
-├── templates/                        # ogham.local.md, both block variants, CLAUDE.md seed
+├── templates/                        # ogham.local.md, the three block variants, CLAUDE.md seed
 ├── test/                             # node:test units + fixture repos
 │   ├── fixtures/
 │   └── acceptance/
@@ -359,19 +377,19 @@ An unrecognised lint-config shape changes one step. `apply` vendors everything e
 
 ### Assumptions
 
-- Machines and cloud sessions that run the bootstrap have Node 20 or later, git, and network access to GitHub (KTD4). A cloud environment with a network allowlist that blocks GitHub cannot run `init`; the repo, once adopted, needs nothing, since `check.mjs` is vendored.
+- Machines and cloud sessions that run the bootstrap have Node 20 or later, git, and network access to GitHub (KTD4). A cloud environment with a network allowlist that blocks GitHub cannot run `install`; the repo, once adopted, needs nothing, since `check.mjs` is vendored.
 - The repo's ESLint version supports bulk suppressions (KTD9). U9 confirms the version floor and stops with a clear message below it.
-- Claude Code resolves an `@` import inside `AGENTS.md` when `CLAUDE.md` imports `AGENTS.md` (KTD2). U10 checks it in a real session.
+- Claude Code resolves the `@` import of `ogham.local.md` inside `AGENTS.md` when `CLAUDE.md` imports `AGENTS.md` (KTD2). U10 checks it in a real session.
 
 ### Risks & Dependencies
 
 | Risk | Mitigation |
 |---|---|
 | `eslint/use-at-your-own-risk` is not a stable API, and a release could drop `builtinRules` | A U5 test fails loudly if the export or any aliased rule is missing. The fallback is to copy those four rules' sources, which are MIT-licensed, into the preset |
-| ce-code-review's standards reviewer may not follow a pointer from `CODING_STANDARDS.md` to the rubric | U10 runs a real ce-code-review for AE2. If the reviewer does not follow the pointer, stop and bring the evidence to Gonçalo, since D15 rejected inlining |
-| Under D15, Codex follows a pointer to the core rather than having it always loaded (R3) | U10 tests a Codex session. If it writes code without reading the core, stop and bring the evidence to Gonçalo |
-| Trellis reaches cloud sessions only through its environment script, not the repo | The Product Contract already bounds this ("the Trellis half of R9 holds only where Trellis does"). `init` prints the script, and U10's cloud check covers ogham's half |
-| Trellis's delivery changes | KTD6 probes only decision-0073's closed set of states. A Trellis change is a dependency change, followed by an ogham update |
+| ce-code-review's standards reviewer may not follow a pointer from `CODING_STANDARDS.md` to the rubric | U10 runs a real ce-code-review for AE2. If the reviewer does not follow the pointer, stop and bring the evidence to Gonçalo. D20 inlines only the core, so inlining the rubric is his call |
+| `AGENTS.md` grows past Codex's 32 KiB read limit, so Codex misses part of the inline core (R3) | The core keeps to 900 words (U3), and Trellis's block is about 7 KB (trl-107-worker). `install`, `update` and `check` warn past 32 KiB (KTD2). U10 tests a Codex session |
+| Trellis's cloud reach depends on Trellis's CLI | The Product Contract already bounds this ("the Trellis half of R9 holds only where Trellis does"). Ogham passes on what Trellis's `install` prints, and U10's cloud check covers ogham's half |
+| Trellis's CLI does not exist yet, and its exit codes and flags are not final (TRL-107) | U8 runs after U9, as the last unit before U10. If the CLI is not tagged when U9 merges, stop and ask Gonçalo whether to wait or ship v0.1.0 without the Trellis half. Shipping without it would defer part of R7 and AE1, which needs his ruling |
 | Math Quest has a known review gap: its `CODING_STANDARDS.md` likely hides rules 11–16 from ce-code-review (inferred from the reviewer's instructions, not observed) | The Math Quest adoption ticket (U10) carries it, and the reviewer block in `CODING_STANDARDS.md` closes it on adoption |
 
 ---
@@ -386,8 +404,8 @@ An unrecognised lint-config shape changes one step. `apply` vendors everything e
 | U4 | Review rubric | `standard/coding/rubric.md` | U3 |
 | U5 | TypeScript lint preset | `standard/coding/eslint/` | U3 |
 | U6 | Bootstrap: vendoring, lock, update, check | `bin/ogham.mjs`, `src/` | U2, U3 |
-| U7 | Bootstrap: hook-in blocks and local layer | `src/`, `templates/` | U6 |
-| U8 | Bootstrap: Trellis half | `src/` | U6 |
+| U7 | Bootstrap: hook-in blocks and local layer | `src/`, `templates/` | U3, U6 |
+| U8 | Bootstrap: Trellis half | `src/` | U6, U9 (sequencing); Trellis CLI tag (TRL-107) |
 | U9 | Bootstrap: lint wiring, never-weaken gate, suppressions | `src/` | U5, U6 |
 | U10 | Acceptance run, release and follow-up tickets | `test/acceptance/`, `README.md` | U4, U7, U8, U9 |
 
@@ -465,7 +483,7 @@ An unrecognised lint-config shape changes one step. `apply` vendors everything e
 2. Cover R1's five principles and R2's data/behaviour split. Absorb Math Quest rules 11–16: return new values, local building is fine, no hidden inputs, no module-level state, thin effects, and the four effect markers.
 3. Keep paths, interface names and other Math Quest specifics out of the core. They go in the mapping as Math Quest's local layer.
 4. Put language detail and examples in the TypeScript page: `readonly` as the type marker, the `Effect:`/`Mutates:` docblock line, disables that name the effect, and the table mapping each `ogham/*` lint rule to its `og-` ID.
-5. Set a size budget for the core, at most 900 words, so it fits in always-loaded context (R3).
+5. Set a size budget for the core, at most 900 words, so it fits in always-loaded context (R3). It is inlined into `AGENTS.md` (D20) beside Trellis's block of about 7 KB, all within the 32 KiB Codex reads.
 
 **Patterns to follow:** math-quest `docs/code-organisation.md` rules 11–16, with each rule's "Checked by" column as the checker.
 
@@ -475,6 +493,7 @@ An unrecognised lint-config shape changes one step. `apply` vendors everything e
 - `core.md` stays within its word budget.
 - Every Math Quest rule 11–16 maps to an `og-` ID or to Math Quest's local layer in `docs/mq-rule-mapping.md`; a missing rule fails.
 - `core.md` contains no repo path (any token shaped like `src/…`) and no Math Quest identifier.
+- `core.md` contains no relative Markdown link. Other pages are named by repo-root path (`.ogham/coding/…`), since the core is read inline (KTD2).
 
 **Verification:** the structure test passes, and Gonçalo reads the core in the PR. The core is his taste, and R6 gives research no veto.
 
@@ -543,7 +562,7 @@ An unrecognised lint-config shape changes one step. `apply` vendors everything e
 
 ### U6. Bootstrap: vendoring, lock, update, check
 
-**Goal:** `init`, `update` and `check` vendor the pinned standard, record and verify it, and show diffs; `check.mjs` runs the same checks offline.
+**Goal:** `install`, `update` and `check` vendor the pinned standard, record and verify it, and show diffs; `check.mjs` runs the same checks offline; `remove` takes ogham's owned files back out.
 
 **Requirements:** R7 (ogham half), R8, R10, R12; KTD1, KTD4, KTD5, KTD13.
 
@@ -566,12 +585,16 @@ An unrecognised lint-config shape changes one step. `apply` vendors everything e
 **Execution note:** test-first; build each pure decision function before its shell.
 
 **Test scenarios:**
-- `init` on an empty repo writes `.ogham/coding/*`, `check.mjs` and `lock.json`, and hashes in the lock match the files.
+- `install` on an empty repo writes `.ogham/coding/*`, `check.mjs` and `lock.json`, and hashes in the lock match the files.
 - `update` to the same tag reports no diff and writes nothing.
 - `update` to a newer tag shows a diff for each changed owned file and leaves `ogham.local.md` byte-identical. Covers AE3.
 - `update` when an owned file was edited locally stops and shows that edit. With `--force` it overwrites and reports what it discarded.
 - `check` and `.ogham/check.mjs` both exit zero on a clean adoption. Both exit non-zero on an edited owned file, and on a lock whose commit does not match its tag.
-- `init` when a path it would touch has uncommitted changes refuses and writes nothing.
+- `install` when a path it would touch has uncommitted changes refuses and writes nothing.
+- `remove` deletes `.ogham/` (lock and `check.mjs` included), keeps `ogham.local.md` byte-identical, touches only the paths the lock lists, and refuses on uncommitted changes as `install` does. A failure partway restores every touched path.
+- `install` on a repo that has a lock writes nothing, reports "already adopted", and exits zero.
+- The lock lists every file `install` created and every line it inserted outside `.ogham/`.
+- No command prompts. Each one completes or refuses with a non-zero exit when stdin is closed.
 - A refusal after writing restores every touched path, leaving `git status` clean.
 - A file that differs only in CRLF line endings is not reported as a local edit.
 - A Go-only repo gets the prose and the rubric with no preset, and `update` does not add the preset later.
@@ -580,15 +603,15 @@ An unrecognised lint-config shape changes one step. `apply` vendors everything e
 
 ### U7. Bootstrap: hook-in blocks and local layer
 
-**Goal:** place the two block variants where the writing and reviewing agents read, and seed the local layer.
+**Goal:** place the three block variants where the writing and reviewing agents read, with the core inline once in `AGENTS.md`, and seed the local layer.
 
-**Requirements:** R8 (pointers), R12, R13, R14, R16; KTD2, KTD3, KTD11.
+**Requirements:** R3, R8 (hook-in), R12, R13, R14, R16; KTD2, KTD3, KTD11.
 
-**Dependencies:** U6.
+**Dependencies:** U3, U6.
 
 **Files:**
 - `src/blocks.mjs`
-- `templates/block-agents.md`, `templates/block-reviewer.md`, `templates/ogham.local.md`, `templates/CLAUDE.md`
+- `templates/block-agents.md`, `templates/block-claude.md`, `templates/block-reviewer.md`, `templates/ogham.local.md`, `templates/CLAUDE.md`
 - `test/blocks.test.js`
 
 **Approach:**
@@ -597,13 +620,18 @@ An unrecognised lint-config shape changes one step. `apply` vendors everything e
 3. Record one hash per placed block in the lock.
 
 **Test scenarios:**
-- A repo with no `AGENTS.md` or `CLAUDE.md` gets both: `CLAUDE.md` is one `@AGENTS.md` line, and `AGENTS.md` holds the agents block.
-- A repo with `CLAUDE.md` but no `AGENTS.md` gets a new `AGENTS.md` with the block, and the agents block in `CLAUDE.md` when it lacks the import.
+- A repo with no `AGENTS.md` or `CLAUDE.md` gets both: `CLAUDE.md` is one `@AGENTS.md` line, and `AGENTS.md` holds the agents block with the core's text inline, byte-identical to the vendored `core.md`.
+- A repo with `CLAUDE.md` but no `AGENTS.md` gets a new `AGENTS.md` with the agents block. When `CLAUDE.md` lacks the import, it gets the Claude block (`@` imports only), so the core's text appears once across both files.
+- `update` to a core that changed rewrites the inline text inside the block, and the diff shows it.
+- An `AGENTS.md` whose ogham end marker sits past byte 32,768 gets a warning naming the offset, and the run still succeeds. A large file with the block ending inside the limit gets no warning.
+- The inline core sits inside `prettier-ignore-start`/`end`, and running Prettier on `AGENTS.md` leaves the block hash unchanged.
+- When `CLAUDE.md` gets the Claude block, the block carries the rubric and language-page pointers too.
+- `remove` deletes every ogham block and leaves the rest of each file byte-identical. It deletes a `CLAUDE.md` or `AGENTS.md` only when ogham created the file and the block was all it held.
 - A repo whose `AGENTS.md` has content gets the block appended. A re-run does not duplicate it, and the rest of the file is byte-identical.
 - A repo with `CODING_STANDARDS.md` gets the reviewer block there. A repo without one does not get the file created.
 - An `AGENTS.md` holding a `trellis:begin` block keeps it intact, with ogham's block placed after it, never inside.
 - Two ogham begin markers, or a begin without an end, stop the run with the file and line numbers.
-- An existing `ogham.local.md` is never rewritten by `init` or `update`.
+- An existing `ogham.local.md` is never rewritten by `install`, `update` or `remove`.
 - `check` fails when any placed block was deleted or its text edited, naming the file.
 - `check` fails on an `og-` reference the core lacks and on a duplicate `local-` ID; a unique `local-` rule passes.
 
@@ -611,31 +639,31 @@ An unrecognised lint-config shape changes one step. `apply` vendors everything e
 
 ### U8. Bootstrap: Trellis half
 
-**Goal:** `init` makes sure Trellis is adopted, never over an existing state or a decline.
+**Goal:** `install` makes sure Trellis is adopted by calling Trellis's own CLI, pinned, and reports what it did.
 
 **Requirements:** R7, R9 (Trellis half); KTD6.
 
-**Dependencies:** U6.
+**Dependencies:** U6, plus a tagged Trellis CLI from TRL-107. Sequenced after U9, as the last unit before U10 (Risks).
 
 **Files:**
 - `src/trellis.mjs`
 - `test/trellis.test.js`
 
 **Approach:**
-1. Build the probe as a pure function over a file listing, tag list and settings contents. It returns the state found or "none".
-2. The shell gathers those inputs.
-3. Make the settings merge preserve every existing key and the file's formatting style.
+1. Keep the pinned Trellis version in one constant in ogham's source, and record it in the lock.
+2. Build outcome parsing as a pure function over Trellis's exit code and stdout line, using the codes Trellis publishes with its tag.
+3. The shell runs `npx github:kodhama/trellis#v<version> install` after ogham's own writes verify.
+4. Before building, confirm the exit codes and flags with trl-107-worker or Trellis's README at the tag.
 
 **Test scenarios:**
-- An empty repo gets the exact two-line `.trellis/rules.toml`, plus `trellis@kodhama: true` and the `kodhama` marketplace in `.claude/settings.json`, and the cloud setup script is printed.
-- A repo with `.trellis/rules.toml` is left untouched; so is one with `.claude/rules/trellis.md`, one with `.claude/skills/trellis/`, and one with a `trellis-pre-morph` tag.
-- `trellis:begin` at column 0 in `GEMINI.md` is detected, as are the other four instruction files.
-- `"trellis@kodhama": false` in `enabledPlugins` is treated as a decline and left as is.
-- A `kodhama` marketplace pointing at another repo stops the run.
-- An existing `.claude/settings.json` with other plugins keeps them all after the merge.
-- `update` on a repo whose Trellis was removed does not re-seed it.
+- `install` calls Trellis's CLI with the pinned version, once, after the lock is written. A stubbed CLI records the call.
+- Each Trellis outcome (installed, already present, declined, migrated, error) is reported in one line. The first four count as success. An unknown exit code is reported as an error, never as success.
+- A Trellis error leaves ogham's adoption in place. `install` exits non-zero, names Trellis, and prints the exact Trellis command to retry.
+- The lock holds no Trellis data.
+- `update` and `remove` never call Trellis's CLI.
+- With a real tagged Trellis CLI: an empty repo ends adopted. A repo where Trellis was removed or declined stays that way.
 
-**Verification:** tests pass; the probe lists every state in decision-0073.
+**Verification:** tests pass with a stubbed CLI. One run against the real tagged CLI on a fixture repo is recorded in the PR.
 
 ### U9. Bootstrap: lint wiring, never-weaken gate, suppressions
 
@@ -675,6 +703,7 @@ An unrecognised lint-config shape changes one step. `apply` vendors everything e
 - A config wrapped in a function (Math Quest's `withKnowledgeBoundary([...])` shape) gets everything except the config edit, plus a pending baseline. After the import is added by hand, the next run completes the gate against that baseline.
 - A lint script passing `--config other.js` stops with instructions.
 - Re-running `update` does not insert the preset twice.
+- `remove` takes the preset spread, the `check.mjs` step and the `ogham/*` bulk-suppression entries back out. The lint config and the `lint` script then match their pre-install contents in the fixture's git history, and lint passes with no unused-suppression error. A minimal config or `lint` script that `install` created (the no-ESLint branch) is deleted only if the repo has not changed it since. `remove` lists the dev dependencies `install` added, and leaves them installed.
 
 **Verification:** tests pass on fixture repos with real ESLint installed.
 
@@ -693,10 +722,10 @@ An unrecognised lint-config shape changes one step. `apply` vendors everything e
 **Approach:**
 1. Write automated acceptance tests on fixture repos (AE1 local half, AE3, AE4). AE1's "new, empty TypeScript repo" fixture is a `package.json` and a `tsconfig.json` with no code and no installed dependencies.
 2. Run the manual checks and record their evidence in the PR:
-   - **AE1, cloud half:** open a cloud session on an adopted fixture repo; it reads ogham's core and lint runs. Trellis in cloud needs Trellis's environment script and is noted separately (Risks).
+   - **AE1, cloud half:** open a cloud session on an adopted fixture repo; it reads ogham's core and lint runs. Trellis's cloud reach follows Trellis's CLI and is noted separately (Risks).
    - **AE2:** one ce-code-review run on a fixture diff, with and without an exemption.
    - **The `@` import:** it resolves in Claude Code.
-   - **Codex:** a Codex session asked to write code reads the core first. If it does not, stop and bring the evidence to Gonçalo.
+   - **Codex:** a Codex session sees the inline core. Asked to write code, it follows the core. Also record whether Codex's 32 KiB cap applies per `AGENTS.md` file or across the chain (KTD2). If it does not follow the core, stop and bring the evidence to Gonçalo.
    - **The agent-trial for the Success Criteria:** a fresh Claude session in an adopted fixture writes a small feature with no style prompt, then lint and one rubric review run on its diff.
 3. Have ogham adopt itself.
 4. Update the README with install and update instructions.
@@ -707,7 +736,7 @@ An unrecognised lint-config shape changes one step. `apply` vendors everything e
    - issues for the code-organisation and architecture entries (R18, D2), each linked from KOD-5.
 
 **Test scenarios:**
-- Covers AE1. The fixture, after `init`, has Trellis adopted, the agents block, `.ogham/`, installed lint dependencies and a `lint` script. `check` passes, and lint flags a seeded `Math.random()` in source, citing its `og-` ID.
+- Covers AE1. The fixture, after `install`, has Trellis adopted, the agents block, `.ogham/`, installed lint dependencies and a `lint` script. `check` passes, and lint flags a seeded `Math.random()` in source, citing its `og-` ID.
 - Covers AE3. A fixture repo with a local tightening, after `update` to a newer fixture tag, shows diffs only for `.ogham/` files and blocks, and keeps `ogham.local.md` unchanged.
 - Covers AE4. A TypeScript fixture with no review loop gets the preset enforcing on lint, and no review skill or agent is installed.
 - Covers AE2 (manual). A real reviewer run on a diff with a mutating helper flags it citing its `og-` ID. With a named exemption in `ogham.local.md`, the reviewer accepts it.
@@ -731,7 +760,7 @@ An unrecognised lint-config shape changes one step. `apply` vendors everything e
 
 - U1–U10 are merged by Gonçalo, and v0.1.0 is tagged with his approval.
 - Every Product Contract requirement is met. A requirement may be deferred only when it is already listed under Scope Boundaries or Gonçalo approves the deferral in writing.
-- `npx github:kodhama/ogham#v0.1.0 init` adopts AE1's fixture in one step, and the agent-trial passes lint and the rubric.
+- `npx github:kodhama/ogham#v0.1.0 install` adopts AE1's fixture in one step, and the agent-trial passes lint and the rubric.
 - `main` protection is in place, confirmed through the GitHub API.
 - The adoption tickets (R17) and the next-entry issues (R18) are filed and linked from KOD-5.
 - No dead code from abandoned approaches remains in the diff, and no decision was made without a record under `docs/decisions/` or the maintainer's rulings.
