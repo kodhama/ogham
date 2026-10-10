@@ -202,7 +202,7 @@ This plan covers the companion's shape and its first standard, coding practices.
   - A later standard joins as a sibling folder, so adoption does not change (R18).
 - KTD2. **Hook-in is a marked block; the agents block carries the core inline, once** (D20, superseding D15's pointer-only block). Blocks are marked `<!-- ogham:begin -->` and `<!-- ogham:end -->` and come in three variants:
   - **The agents block** carries the core's text inline. It also carries pointers to the language pages, the rubric (reviewers grade diffs against it and cite rule IDs) and `ogham.local.md`, plus an `@` import of `ogham.local.md` so Claude loads the local layer too. Codex can't follow `@` imports and reads only the first 32 KiB of `AGENTS.md`, which is why the core is inline.
-  - **The Claude block** carries `@` imports of the core and `ogham.local.md`, plus the same pointers to the language pages and the rubric. It never holds a second inline copy of the core.
+  - **The Claude block** carries `@` imports of the core and `ogham.local.md`, plus the same plain-text pointers to the language pages and the rubric, so Claude can find them. It never holds a second inline copy of the core, which is what D20 rules out; pointer lines are not copies.
   - **The reviewer block** carries the rubric pointer and the `ogham.local.md` pointer only.
 
   **Placement rules:**
@@ -237,7 +237,7 @@ This plan covers the companion's shape and its first standard, coding practices.
   - **The lock records:** the version; the source commit, which `install` and `update` resolve from the tag with `git ls-remote` (the offline checks do not re-verify it); a sha256 per owned file over LF-normalised content; one hash per placed block (keyed by file); the per-repo choices (languages, preset on or off); and what `install` added outside `.ogham/`, so that `remove` can undo exactly that. That means the files it created, the lines it inserted (config spread, lint-script step, `.prettierignore` entry) and the dev dependencies it added. The lock records nothing about Trellis (KTD6).
   - **`update`** shows the diff of every owned file, and the same tag gives no diff.
   - **A local edit** to an owned file, committed or not, stops `update`, which shows the edit. The way out is to move the change to `ogham.local.md`, or to pass `--force`, which reports what it discards.
-  - **`check`** exits non-zero on: a hash mismatch; a missing or altered block; an `og-` reference in `ogham.local.md` that the core does not define; a duplicate `local-` ID; or a disable directive without a reason, within KTD7's reason scope; or a lock marked pending (KTD9). On a mismatch it also says that a formatter may have caused it.
+  - **`check`** exits non-zero on: a hash mismatch; a missing or altered block; an `og-` reference in `ogham.local.md` that the core does not define; a duplicate `local-` ID; a disable directive without a reason, within KTD7's reason scope; a lock marked pending (KTD9); or a lock whose version differs from the version built into `check.mjs`. On a mismatch it also says that a formatter may have caused it.
   - **Formatter:** the bootstrap adds `.ogham/` to `.prettierignore` when that file exists. The agents block guards itself (KTD2).
 
   The lock model follows the prior art of rulesync's commit-pinned lockfile and ai-rulez's hashed outputs.
@@ -258,7 +258,7 @@ This plan covers the companion's shape and its first standard, coding practices.
   - **Messages:** the `no-restricted-*` messages cite `og-` IDs. `no-param-reassign` keeps ESLint's fixed message, and the TypeScript page maps each `ogham/*` rule to its `og-` ID.
   - **Scope:** source files in JS and TS extensions, tests excluded, as Math Quest's globs do.
   - **Format:** the preset is vendored as `.mjs`, so it loads whatever the repo's module type.
-  - **Disable reasons:** an inline rule, `ogham/disable-needs-reason`, reports a disable directive without a `-- reason` for editor feedback. A blanket `eslint-disable` would silence that rule, so the same check also runs in `check.mjs`, which scans comments directly and is wired into the repo's lint script (KTD10). **Reason scope:** both cover only directives in the preset's file scope that name an `ogham/*` rule, name no rule (a blanket disable), or name `ogham/disable-needs-reason`. A repo's own directives for its own rules are out of scope.
+  - **Disable reasons:** an inline rule, `ogham/disable-needs-reason`, reports a disable directive without a `-- reason` for editor feedback. A blanket `eslint-disable` would silence that rule, so the same check also runs in `check.mjs`, which scans comments directly and is wired into the repo's lint script (KTD10). **Reason scope:** both cover every disable directive in the preset's file scope, as D16 says ("every disable has a reason"), including directives for the repo's own rules. Existing reasonless directives are caught by the KTD9 preflight before anything is written.
   - **Unused directives:** `linterOptions.reportUnusedDisableDirectives` is set to error.
 
   (session-settled: user-approved — chosen over eslint-plugin-functional 10.0.1: its useful rules need typed linting, Math Quest's fp-standard proposal declined it, and built-ins cover the measured gaps)
@@ -271,7 +271,7 @@ This plan covers the companion's shape and its first standard, coding practices.
 - KTD9. **Day one stays green without hiding anything the repo already enforces.**
   - **A preflight** lists any existing unused disable directive, and any existing directive that fails KTD7's reason check, and stops, because neither can be suppressed.
   - **A final lint run:** after suppressions are recorded and before the lock is written, the repo's `lint` script runs once inside the rollback scope. Any error rolls back and lists the failing files and rules. This catches files the preset newly brings into lint, which the gate's newly-ignored check cannot see.
-  - **Pending baseline:** on the unrecognised-config path, the lock is written marked `pending`, recording the expected preset import as an ogham-inserted line. `install` or `update` on a pending lock resumes the gate against the saved baseline instead of reporting "already adopted". `check` fails while the lock is pending. Trellis runs on the run that completes the gate. `remove` deletes the recorded import line when it is present.
+  - **Pending baseline:** on the unrecognised-config path, the lock is written marked `pending`, recording the expected preset import as an ogham-inserted line. `install` or `update` on a pending lock resumes the gate against the saved baseline instead of reporting "already adopted". `check` fails while the lock is pending. When `install` completes the gate, Trellis runs then. When `update` completes it, `update` still never calls Trellis; it prints the pinned Trellis install command instead. `remove` deletes the recorded import line when it is present.
   - **Bulk suppressions:** existing violations of `ogham/*` rules become ESLint bulk suppressions, the pattern Math Quest's fp-standard D6 chose. They are keyed to `ogham/*` IDs only, so suppression capacity can never cover a repo rule. The suppressions file can only shrink.
 - KTD10. **The bootstrap makes sure lint runs; the repo's own CI decides when.**
   - **The lint script:** the bootstrap adds a `lint` script when there is none, and appends `node .ogham/check.mjs` to it when it is a plain command. Any other script shape is reported with the line to add.
@@ -285,7 +285,7 @@ This plan covers the companion's shape and its first standard, coding practices.
   - **A folder-wide loosening** is a block in the repo's own config that turns an `ogham/*` rule off for a glob, plus a matching exemption entry. KTD8's second pass accepts it only with that entry.
   - **A local tightening** narrows a core rule by citing its `og-` ID, or adds a rule with a `local-` ID.
 - KTD12. **The research pass is bounded and source-first** (D16, D8). For each principle:
-  - **Leads:** Gemini enumerates candidate sources as domain, URL and verbatim quote, with no synthesis. The worker reads each source and quotes it.
+  - **Leads:** Gemini enumerates candidate sources as domain, URL and verbatim quote, with no synthesis. (U1 ran with Claude WebSearch instead, per D18; the research doc's Method records it.) The worker reads each source and quotes it.
   - **Check:** Codex Sol checks the citations and looks for counter-evidence.
   - **Budget:** at most six sources considered and two to four cited per principle.
   - **Result:** findings may change a rule's wording or examples; contested evidence is recorded as contested; no rule is removed (R6).
@@ -353,11 +353,11 @@ flowchart TD
   supp --> lintrun{"repo lint passes?"}
   lintrun -- no --> rollback
   lintrun -- yes --> lockw[write lock; show diffs]
-  lockw --> trl{"install?"}
+  lockw --> trl{"install, and lock not pending?"}
   trl -- yes --> trellis[run pinned Trellis CLI install; report its outcome]
 ```
 
-An unrecognised lint-config shape changes one step. `apply` vendors everything except the config edit and saves the before-configs as a pending baseline. The run then prints the exact lines to add. The lock is written marked `pending` (KTD9). The next `install` or `update` detects the added import and finishes the gate against that baseline.
+An unrecognised lint-config shape changes one step. `apply` vendors everything except the config edit and saves the before-configs as a pending baseline. The run then prints the exact lines to add. The lock is written marked `pending` (KTD9). The next `install` or `update` detects the added import and finishes the gate against that baseline. Trellis follows KTD9's pending rule.
 
 ### Output Structure
 
@@ -629,10 +629,10 @@ An unrecognised lint-config shape changes one step. `apply` vendors everything e
 
 **Test scenarios:**
 - A repo with no `AGENTS.md` or `CLAUDE.md` gets both: `CLAUDE.md` is one `@AGENTS.md` line, and `AGENTS.md` holds the agents block with the core's text inline, byte-identical to the vendored `core.md`.
-- A repo with `CLAUDE.md` but no `AGENTS.md` gets a new `AGENTS.md` with the agents block. When `CLAUDE.md` lacks the import, it gets the Claude block (`@` imports only), so the core's text appears once across both files.
+- A repo with `CLAUDE.md` but no `AGENTS.md` gets a new `AGENTS.md` with the agents block. When `CLAUDE.md` lacks the import, it gets the Claude block (`@` imports and pointer lines, no inline core), so the core's text appears once across both files.
 - `update` to a core that changed rewrites the inline text inside the block, and the diff shows it.
 - An `AGENTS.md` whose ogham end marker sits past byte 32,768 gets a warning naming the offset, and the run still succeeds. A large file with the block ending inside the limit gets no warning.
-- The inline core sits inside `prettier-ignore-start`/`end`, and running Prettier on `AGENTS.md` leaves the block hash unchanged.
+- The inline core sits inside `prettier-ignore-start`/`end`, and running Prettier on `AGENTS.md` leaves the block hash unchanged. The block's own lines outside those markers are already Prettier-clean.
 - When `CLAUDE.md` gets the Claude block, the block carries the rubric and language-page pointers too.
 - `remove` deletes every ogham block and leaves the rest of each file byte-identical. It deletes a `CLAUDE.md` or `AGENTS.md` only when ogham created the file and the block was all it held.
 - A repo whose `AGENTS.md` has content gets the block appended. A re-run does not duplicate it, and the rest of the file is byte-identical.
@@ -714,7 +714,7 @@ An unrecognised lint-config shape changes one step. `apply` vendors everything e
 - On the pending-baseline path, the first run writes a lock marked `pending`, and `check` fails. After the import is added by hand, `install` resumes the gate instead of reporting "already adopted", and Trellis runs on that completing run. `remove` on a pending adoption deletes the recorded import line, and ESLint's config still loads.
 - A repo with a tracked `.d.ts` outside its own lint `files` globs that the preset newly covers: if the final lint run errors, `install` rolls back and lists the file and rule.
 - A repo with a `pnpm-lock.yaml` and no ESLint stops before writing, printing the dev dependencies to add.
-- An existing reasonless `eslint-disable-next-line @typescript-eslint/require-await` (a repo rule) passes `check.mjs`. An existing reasonless blanket disable stops at the preflight.
+- An existing reasonless `eslint-disable-next-line @typescript-eslint/require-await` (a repo rule) stops at the preflight, which lists it and writes nothing. So does an existing reasonless blanket disable. With reasons added, `install` proceeds and `check.mjs` passes.
 - `remove` takes the preset spread, the `check.mjs` step and the `ogham/*` bulk-suppression entries back out. The lint config and the `lint` script then match their pre-install contents in the fixture's git history, and lint passes with no unused-suppression error. A minimal config or `lint` script that `install` created (the no-ESLint branch) is deleted only if the repo has not changed it since. `remove` lists the dev dependencies `install` added, and leaves them installed.
 
 **Verification:** tests pass on fixture repos with real ESLint installed.
