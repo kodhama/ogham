@@ -6,7 +6,7 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "test": "node --test \"test/**/*.test.js\"",
+    "test": "node --test \"test/**/*.test.{js,mjs}\"",
     "typecheck": "tsc --noEmit",
     "lint": "eslint ."
   },
