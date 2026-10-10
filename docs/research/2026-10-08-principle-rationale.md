@@ -77,7 +77,7 @@ Strength labels are this document's judgement, not the sources' words: **support
 **Strength:** **design argument.** Command-query separation and side-effect naming are long-standing conventions with official-language endorsement (Swift). No study measuring defects was found. The dissent is about cost, not direction: type-level effect systems are verbose (Rytz).
 
 **Suggested changes:**
-- **Keep Math Quest 16's four markers:** name, `readonly` type, an `Effect:`/`Mutates:` docblock line, and place. **Don't add a type-level effect system**; that is the verbosity Rytz et al. found blocks adoption, and TypeScript has none.
+- **Keep Math Quest 16's four markers:** name, `readonly` type, an `Effect:`/`Mutates:` docblock line, and place. **Don't add a type-level effect system**; Rytz et al. argue (a stated belief, not a measured finding) that their verbosity is the main obstacle to everyday use, and TypeScript has none.
 - **Names cannot carry effects that come from arguments.** Rytz et al.: "the effect of a function can depend on the effect its arguments" (sic). A higher-order function is marked by what it does itself; the functions passed to it follow P5 (they capture nothing they mutate).
 - **Name the accepted CQS cases** (pop, dequeue, iterator `next`). They are still marked effects; their names already say so.
 
