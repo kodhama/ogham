@@ -1,0 +1,19 @@
+{
+  "name": "ogham",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Coding standards that travel with the repo: a pinned standard, a lint preset and a review rubric, installed by one bootstrap step",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "eslint": "^10.12.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.71.1"
+  }
+}
