@@ -15,12 +15,12 @@ ogham's own code, and never reaches an adopting repo.
 
 Add a dependency only with a dated decision here (`AGENTS.md`).
 
-**2026-10-10 decision: typescript** (development only, `^6.0.3`). Ogham's code
+**2026-10-10 decision: typescript** (development only, `~6.0.3`). Ogham's code
 is plain ESM JavaScript, and `npm run typecheck` checks it with
 `tsc --noEmit` under `checkJs` (plan KTD14). It ships nothing. Turned down:
 TypeScript 7, the current `latest`, because typescript-eslint 8.71.1 accepts
-only `typescript >=4.8.4 <6.1.0`. Move to 7 once typescript-eslint supports
-it.
+only `typescript >=4.8.4 <6.1.0`; the tilde range keeps installs inside that.
+Move to 7 once typescript-eslint supports it.
 
 **2026-10-10 decision: eslint** (development only, `^10.12.0`). `npm run lint`
 runs it over the repo. The TypeScript preset that ogham ships is built on
