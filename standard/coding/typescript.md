@@ -1,6 +1,6 @@
 # Coding standard: TypeScript
 
-How the core rules look in TypeScript and JavaScript. **The core (`.ogham/coding/core.md`) is the standard; this page shows it applied.** Each section names the rule it illustrates.
+How the core rules look in TypeScript and JavaScript. **The core (`.ogham/coding/core.md`) is the standard; this page shows it applied.** Each section names the rule it illustrates. Like the core, it covers source code, not tests.
 
 ## Pure functions and hidden inputs
 
@@ -16,9 +16,11 @@ const isExpired = (token: Token): boolean => token.expiresAt < Date.now();
 const isExpired = (token: Token, now: number): boolean => token.expiresAt < now;
 ```
 
-The same goes for randomness (take a seed, or a generator the caller made from one), `process.env` (take the parsed config) and storage (take the stored value).
+The same goes for randomness (take a seed), `process.env` (take the parsed config) and storage (take the stored value).
 
 **An injected clock or store is still an effect.** Edge code may take them as interfaces so a test can pass fakes, but logic receives the value they produced, never the interface.
+
+**The edge's own read is a marked exception.** Lint cannot tell the edge from logic, so it reports the one place that is meant to read the clock. Mark that line as [Exceptions](#exceptions) shows, or exempt the edge's folder by name in `ogham.local.md`.
 
 ## Returning new values
 
@@ -77,7 +79,7 @@ const withPrice = (
 
 `og-mark-effects`
 
-A function that mutates or causes an effect carries all four markers.
+A function that causes an effect carries all four markers. A mutator carries the first three; it may live beside the logic that uses it.
 
 ```ts
 /**
@@ -94,29 +96,33 @@ const sortScoresInPlace = (scores: number[]): void => {
 - **Doc line:** one line in the docblock, `Effect: …` or `Mutates: …`, naming what is touched.
 - **Place:** effects live at the program's edge or in a file whose job is IO.
 
+`sortScoresInPlace` needs nothing more. Its markers are the record of the exception, and lint does not report a method call, so there is no disable comment to write.
+
 A higher-order function is marked by what it does itself. The functions passed to it follow `og-functions-as-values`.
 
-**`readonly` and `as const` mark intent; they do not make a value immutable.** Both are shallow, and TypeScript says so: "const contexts don't immediately convert an expression to be fully immutable" ([TypeScript 3.4 release notes](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-4.html)). The marker tells the reader and the reviewer what is meant; the rule is still "don't mutate".
+**`readonly` and `as const` mark intent; they do not guarantee an immutable value.** `readonly` is shallow, and `as const` reaches only the literal it is written on. TypeScript says so: "const contexts don't immediately convert an expression to be fully immutable" ([TypeScript 3.4 release notes](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-4.html)). The marker tells the reader and the reviewer what is meant; the rule is still "don't mutate".
 
 ## Thin effects
 
 `og-thin-effects`
 
-Pure code decides; effectful code performs. The only branch an effectful function needs is whether its effect succeeded.
+Pure code decides; a function that mutates or causes an effect does only that. The only branch it needs is whether the effect succeeded.
 
 ```ts
-/** Decides what a renewal should store. Pure. */
-const renew = (account: Account, now: number): Renewal =>
-  account.paidUntil < now
-    ? { kind: "lapsed", account: { ...account, active: false } }
-    : { kind: "renewed", account: { ...account, paidUntil: now + YEAR } };
+type Renewal =
+  | { readonly kind: "lapsed" }
+  | { readonly kind: "renewed"; readonly paidUntil: number };
+
+/** Decides what a renewal should do. Pure. */
+const renew = (paidUntil: number, now: number): Renewal =>
+  paidUntil < now ? { kind: "lapsed" } : { kind: "renewed", paidUntil: now + YEAR };
 
 /**
  * Stores the outcome of a renewal.
- * Effect: writes the account to the store.
+ * Effect: writes the renewal to the store.
  */
-const saveRenewal = async (store: AccountStore, renewal: Renewal): Promise<void> => {
-  await store.put(renewal.account);
+const saveRenewal = async (store: RenewalStore, id: string, renewal: Renewal): Promise<void> => {
+  await store.put(id, renewal);
 };
 ```
 
@@ -153,15 +159,15 @@ const orderTotal = (order: Order): number =>
   order.lines.reduce((sum, line) => sum + line.price * line.quantity, 0);
 ```
 
-**An entity is built by one function that checks its rules** and returns the data or an error. The type, the builder and every other rule about the entity sit in one module, so a rule is written once.
+**An entity is data with rules of its own.** An `Order` above is not one: any list of lines is a valid order. An email address is: not every string is valid. An entity is built by one function that checks its rules and returns the data or an error. The type, the builder and every other rule about the entity sit in one module, so a rule is written once.
 
 ```ts
 // email.ts — everything that is true of an Email lives in this file.
-export type Email = { readonly address: string };
+import type { Built } from "./built.js";
+// Built<T> is shared by every builder:
+//   { readonly ok: true; readonly value: T } | { readonly ok: false; readonly error: string }
 
-export type Built<T> =
-  | { readonly ok: true; readonly value: T }
-  | { readonly ok: false; readonly error: string };
+export type Email = { readonly address: string };
 
 /** Builds an Email, or says why the text is not one. */
 export const buildEmail = (text: string): Built<Email> =>
@@ -170,23 +176,29 @@ export const buildEmail = (text: string): Built<Email> =>
     : { ok: false, error: `"${text}" is not an email address` };
 ```
 
-Code elsewhere never writes an `Email` literal; it calls `buildEmail`. Keep building easy (object literals, spread copies, small builders) so nobody reaches for mutation to save typing.
+Code elsewhere never writes an `Email` literal or a spread copy of one; it calls `buildEmail`, or another function in that module. Data with no rules of its own is built with plain literals and spread copies. Keep both easy, so nobody reaches for mutation to save typing.
 
 ## Exceptions
 
 `og-reasoned-exceptions`
 
-**A code-level exception is a disable comment that names the rule ID and the effect:**
+**A code-level exception is a comment at the spot that names the rule ID and the effect.** Where lint reports the line, the comment is the disable directive:
 
 ```ts
-// eslint-disable-next-line ogham/no-param-reassign -- og-return-new-values: sorts the caller's buffer in place, 2M rows
-rows[i] = rows[j];
+// eslint-disable-next-line ogham/no-param-reassign -- og-return-new-values: writes the sample into the caller's buffer
+buffer[offset] = sample;
 ```
 
-- The reason after `--` is required. A disable with no reason is itself reported, and so is a disable that no longer silences anything.
-- The comment is the exception's marker in the code; the function still carries the four markers of `og-mark-effects`.
-- In-place mutation for performance is allowed this way. No benchmark is required, but the reason says what is mutated.
-- A loosening for a whole folder or repo is a named exemption in `ogham.local.md`, never a bare config change.
+Where only the reviewer checks the rule, it is a plain comment in the same shape:
+
+```ts
+// og-thin-effects: pages through the table and decides per page; the rows do not fit in memory
+```
+
+- **The text after `--` is required**, and it names the rule ID and the effect. A disable with no text is itself reported, and so is a disable that no longer silences anything.
+- **The function still carries its markers** (`og-mark-effects`). A marked mutator that lint does not report needs no comment at all.
+- **In-place mutation for performance is allowed** as a marked mutator. No benchmark is required.
+- **A loosening for a folder or the whole repo** is a named exemption with its reason in `ogham.local.md`, never a bare config change.
 
 ## Lint rules and the core rules they check
 
@@ -203,6 +215,6 @@ The preset registers ESLint's own rules under an `ogham/` prefix, so they never 
 **Lint is a tripwire for the common spellings, not a proof.** The reviewer checks what it cannot see:
 
 - a method call that mutates a parameter, such as `items.push(x)`;
-- a hidden input read through an alias (`const { now } = Date`) or through `globalThis`;
+- a hidden input read through an alias (`const clock = Date; clock.now()`) or through `globalThis`;
 - a top-level `const` holding a collection that is written later;
 - every rule the table does not list.
