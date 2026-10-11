@@ -14,9 +14,9 @@ The sources the core's reasons cite, by the name used there. **Most are design a
 - **Holub 2020.** Holub, "Pure-Impure Segregation Principle". A limit: extracting pure code can cost cohesion. <https://tyrrrz.me/blog/pure-impure-segregation-principle>
 - **Hughes 1990.** Hughes, "Why Functional Programming Matters". <https://www.cs.kent.ac.uk/people/staff/dat/miranda/whyfp90.pdf>
 - **Meyer 2006.** Meyer, "Basic Eiffel language mechanisms". <https://se.inf.ethz.ch/~meyer/publications/online/eiffel/basic.html>
-- **Nielebock et al. 2019.** "Programmers do not Favor Lambda Expressions for Concurrent Object-Oriented Code", Empirical Software Engineering, DOI 10.1007/s10664-018-9622-9. About concurrent Java, C# and C++ code.
+- **Nielebock et al. 2019.** "Programmers do not Favor Lambda Expressions for Concurrent Object-Oriented Code", Empirical Software Engineering, DOI 10.1007/s10664-018-9622-9. About concurrent Java, C# and C++ code. <https://2018.fseconference.org/details/fse-2018-Journal-First/12/Programmers-do-not-Favor-Lambda-Expressions-for-Concurrent-Object-Oriented-Code>
 - **Oracle, `java.time.Clock`.** Java SE 8 API documentation. <https://docs.oracle.com/javase/8/docs/api/java/time/Clock.html>
 - **Seemann 2015.** Seemann, "Functional design is intrinsically testable". <https://blog.ploeh.dk/2015/05/07/functional-design-is-intrinsically-testable/>
 - **Seemann 2025.** Seemann, "Song recommendations from combinators". A limit: the pattern strains when the data is too large to load before deciding. <https://blog.ploeh.dk/2025/06/09/song-recommendations-from-combinators/>
-- **Selby et al. 2007.** "Recovering Maintainability Effort in the Presence of Global Data Usage", WCRE 2007. It measures cross-module globals and how often files change, not defects. <https://cs.uwaterloo.ca/~mwg/files/wcre2007.pdf>
+- **Selby et al. 2007.** "Recovering Maintainability Effort in the Presence of Global Data Usage", WCRE 2007. It measures cross-module globals and how often files change, not defects. Two limits: file-scoped variables, the closest match to module-level state, are left out, and the authors note that frequent change may be a sign of growth, not of poor design. <https://cs.uwaterloo.ca/~mwg/files/wcre2007.pdf>
 - **Swift API Design Guidelines.** <https://www.swift.org/documentation/api-design-guidelines/index.html>

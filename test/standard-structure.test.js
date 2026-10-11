@@ -23,7 +23,12 @@ const MATH_QUEST_IDENTIFIERS = [
   /BootIO/,
   /eventsink/,
 ];
-const TRACKER_REFERENCES = [/\bKOD-\d+/, /\bTRL-\d+/, /\bKTD\d+/];
+// Tracker issues, and the plan's own IDs for requirements, rulings and units.
+const TRACKER_REFERENCES = [
+  /\bKOD-\d+/,
+  /\bTRL-\d+/,
+  /\b(?:KTD|AE|R|D|U)\d+\b/,
+];
 
 const ENTRY_START = /^- \*\*`(og-[a-z0-9-]+)`\*\*\s*(.*)$/;
 const OG_ID = /(?<![\w-])og-[a-z0-9]+(?:-[a-z0-9]+)*/g;
@@ -130,15 +135,17 @@ const budgetProblems = (text, budget) =>
 
 /**
  * Tokens shaped like a path into a repo's own tree: a common top-level folder
- * name followed by a slash, wherever it sits in the path. Web addresses are
- * left out first, since their paths are not the repo's.
+ * name, or one of this repo's own, followed by a slash, wherever it sits in
+ * the path. Web addresses are left out first, since their paths are not the
+ * repo's. This is a tripwire over a list of names, not a path parser: a
+ * general one would flag "and/or" and import paths in examples.
  * @param {string} text
  */
 const repoPaths = (text) =>
   text
     .replace(/https:\/\/[^\s>)]+/g, "")
     .match(
-      /(?<![\w-])(?:src|api|lib|app|tests?|packages|docs|scripts|server|client)\/[\w./-]*/g,
+      /(?<![\w-])(?:src|api|lib|app|tests?|packages|docs|scripts|server|client|standard|bin|eslint|templates|\.github)\/[\w./-]*/g,
     ) ?? [];
 
 /**
@@ -269,6 +276,8 @@ const sourceNames = (text) =>
 /**
  * The author-and-year citations in a text, as "Name 2012": it reads
  * "Name 2012", "Name et al. 2012", "One and Two 2012" and "Name (2012)".
+ * A citation with no year, such as a guideline's title, is not found here;
+ * `citationProblems` only checks that each such source is named in the text.
  * @param {string} text
  */
 const citations = (text) =>
@@ -351,6 +360,14 @@ test("the text checks fire on bad text", () => {
     "docs/plan.md",
     "scripts/build.sh",
   ]);
+  assert.deepEqual(
+    repoPaths("standard/coding/core.md, bin/ogham.mjs, .github/workflows/x.yml"),
+    ["standard/coding/core.md", "bin/ogham.mjs", ".github/workflows/x.yml"],
+  );
+  assert.deepEqual(matches("see R14, D27 and U5", TRACKER_REFERENCES), [
+    String(TRACKER_REFERENCES[2]),
+  ]);
+  assert.deepEqual(matches("ES2022 and DOI 10.1007", TRACKER_REFERENCES), []);
   assert.deepEqual(
     repoPaths("read `.ogham/coding/typescript.md` or <https://example.com/docs/x>"),
     [],

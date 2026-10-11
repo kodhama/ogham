@@ -53,8 +53,8 @@ Where a language has no lint preset, the reviewer checks what lint would.
 
 ### Exceptions
 
-- **`og-reasoned-exceptions`** No exception is silent. Where a rule cannot hold, a comment at that spot names the rule ID and the effect; where lint reports the line, that comment is the lint disable. Mutating in place for performance is allowed as a marked mutator; no benchmark is required. A loosening for a folder or the whole repo is a named exemption, with its reason, in `ogham.local.md`.
-  - Why: the reviewer sees every loosening and what it does.
+- **`og-reasoned-exceptions`** No exception is silent. Where a rule cannot hold, a comment at that spot names the rule ID, the effect and the reason; where lint reports the line, that comment is the lint disable. A marked mutator, in-place mutation for performance included, needs the comment only where lint reports it; no benchmark is required. A loosening for a folder or the whole repo is a named exemption, with its reason, in `ogham.local.md`.
+  - Why: the reviewer sees every loosening and its reason.
   - Checked by: lint, reviewer.
 
 The reasons above are design arguments more than measured results. Sources: `.ogham/coding/sources.md`.

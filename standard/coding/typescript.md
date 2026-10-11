@@ -20,7 +20,7 @@ The same goes for randomness (take a seed), `process.env` (take the parsed confi
 
 **An injected clock or store is still an effect.** Edge code may take them as interfaces so a test can pass fakes, but logic receives the value they produced, never the interface.
 
-**The edge's own read is a marked exception.** Lint cannot tell the edge from logic, so it reports the one place that is meant to read the clock. Mark that line as [Exceptions](#exceptions) shows, or exempt the edge's folder by name in `ogham.local.md`.
+**Lint reports the edge's own read too.** It cannot tell the edge from logic, so it reports the one place that is meant to read the clock. That read follows the rule. Silence lint on that line with a disable comment, as [Exceptions](#exceptions) shows, or exempt the edge's folder by name in `ogham.local.md`.
 
 ## Returning new values
 
@@ -79,7 +79,7 @@ const withPrice = (
 
 `og-mark-effects`
 
-A function that causes an effect carries all four markers. A mutator carries the first three; it may live beside the logic that uses it.
+A function that causes an effect carries the four markers below. A mutator carries the first three: it is its own function, and it may live in the same file as the logic that calls it.
 
 ```ts
 /**
@@ -182,10 +182,10 @@ Code elsewhere never writes an `Email` literal or a spread copy of one; it calls
 
 `og-reasoned-exceptions`
 
-**A code-level exception is a comment at the spot that names the rule ID and the effect.** Where lint reports the line, the comment is the disable directive:
+**A code-level exception is a comment at the spot that names the rule ID, the effect and the reason.** Where lint reports the line, the comment is the disable directive:
 
 ```ts
-// eslint-disable-next-line ogham/no-param-reassign -- og-return-new-values: writes the sample into the caller's buffer
+// eslint-disable-next-line ogham/no-param-reassign -- og-return-new-values: writes the sample into the caller's buffer; a copy per sample is too slow
 buffer[offset] = sample;
 ```
 
@@ -195,7 +195,7 @@ Where only the reviewer checks the rule, it is a plain comment in the same shape
 // og-thin-effects: pages through the table and decides per page; the rows do not fit in memory
 ```
 
-- **The text after `--` is required**, and it names the rule ID and the effect. A disable with no text is itself reported, and so is a disable that no longer silences anything.
+- **The text after `--` is required**: the rule ID, the effect, and why the rule cannot hold here. A disable with no text is itself reported, and so is a disable that no longer silences anything.
 - **The function still carries its markers** (`og-mark-effects`). A marked mutator that lint does not report needs no comment at all.
 - **In-place mutation for performance is allowed** as a marked mutator. No benchmark is required.
 - **A loosening for a folder or the whole repo** is a named exemption with its reason in `ogham.local.md`, never a bare config change.

@@ -15,7 +15,7 @@ reads it.**
 ## The maintainer's rulings
 
 **2026-10-11 ruling: thin effects has no named exceptions in v1.** A real case
-uses a code-level exception that names the effect. Turned down: naming "data
+uses a code-level exception that names the effect and its reason. Turned down: naming "data
 too large to load first" as an exception, alone or with "cohesion cost". Each
 named exception widens what reviewers accept, and nothing measured says these
 two are common. The rule's reason still names both limits.
@@ -47,10 +47,12 @@ type, which would put a builder in front of every record; and "complex"
 entities, a judgment the ruling already rejected.
 
 **2026-10-11 decision: an exception comment has one shape, with or without
-lint.** Where lint reports the line, the exception is the disable directive,
-`-- og-<id>: <effect>` (plan KTD11). Where only the reviewer checks the rule,
-it is a plain comment, `// og-<id>: <effect>`. A reviewer-only rule has no
-lint rule to disable, and an unused disable is itself an error.
+lint.** It names the rule ID, the effect and the reason. Where lint reports
+the line, the exception is the disable directive, `-- og-<id>: <effect>;
+<reason>` (plan KTD11 gives the form up to the effect; the reason follows it).
+Where only the reviewer checks the rule, it is a plain comment in the same
+shape. A reviewer-only rule has no lint rule to disable, and an unused disable
+is itself an error.
 
 **2026-10-11 decision: a marked mutator needs no exception comment unless
 lint reports the line.** Its markers (name, types, doc line) are the record.
@@ -62,11 +64,18 @@ lint fires", and lint does not report a mutating method call.
 names the page by its vendored path. Turned down: a link to this repo's
 research document on `main`, which moves under a copy pinned by version and
 hash, and which is a working paper with tracker references in it. The
-bootstrap vendors the page with the core (plan U6).
+bootstrap has to vendor the page with the core, or the core's pointer
+dangles. The plan's file lists did not name the page; they do from this
+change on (KTD1, the output tree, U3's files and a U6 test scenario).
 
 **2026-10-11 decision: logic takes a seed, not a random generator.** Calling a
 generator advances it, so a function that takes one is not pure by the core's
 own definition. Math Quest's rule 13 names "a seed".
+
+**2026-10-11 decision: the place marker binds effects, not mutators.** Math
+Quest's rule 16 says "effects live in the shell … or in a file whose job is
+IO", and its own marked mutator lives beside the logic that calls it. A
+mutator is still its own function, marked by name, types and doc line.
 
 **2026-10-11 decision: the core starts at a second-level heading.** It is
 inlined byte for byte into an adopter's `AGENTS.md` (plan KTD2), where a

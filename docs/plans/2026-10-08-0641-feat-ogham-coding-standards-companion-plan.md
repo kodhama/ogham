@@ -23,6 +23,8 @@ execution: code
 - The core is inlined once into `AGENTS.md` instead of reached by a pointer (KTD2, U7).
 - Five Product Contract lines changed, with no scope change: R8's "adds pointers" now reads "places the standard"; the staleness deferral names the cross-repo routine; and the Trellis dependency names Trellis's CLI. R10 and AE3 now name `update` instead of re-running the bootstrap.
 
+**Revised 2026-10-11 for U3 (`docs/decisions/core-standard-shape.md`):** the coding standard gains a sources page, `standard/coding/sources.md`, which the core names by its vendored path. KTD1, the output tree, U3's files and a U6 test scenario now list it.
+
 **Records outside this repo:** the rulings cited as D1–D21 are in the maintainer's hq records. D1–D13 are in `areas/coding-standards/decisions.md` and D14–D21 in `areas/ogham/decisions.md`. The work item is KOD-5.
 
 ---
@@ -196,7 +198,7 @@ This plan covers the companion's shape and its first standard, coding practices.
 ### Key Technical Decisions
 
 - KTD1. **Everything ogham owns lives under `.ogham/`, namespaced by standard.**
-  - `.ogham/coding/` holds the coding standard: the core, the language pages, the rubric and the ESLint preset.
+  - `.ogham/coding/` holds the coding standard: the core, its sources page, the language pages, the rubric and the ESLint preset.
   - Beside it sit `.ogham/lock.json` and `.ogham/check.mjs`, a vendored copy of the `check` command (KTD5).
   - The project's local layer is `ogham.local.md` at the repo root: created once from a template, never touched again.
   - A later standard joins as a sibling folder, so adoption does not change (R18).
@@ -367,6 +369,7 @@ An unrecognised lint-config shape changes one step. `apply` vendors everything e
 ├── src/                              # bootstrap modules (pure core, thin IO shell)
 ├── standard/coding/
 │   ├── core.md
+│   ├── sources.md
 │   ├── typescript.md
 │   ├── rubric.md
 │   └── eslint/                       # preset + disable-needs-reason rule (.mjs)
@@ -481,6 +484,7 @@ An unrecognised lint-config shape changes one step. `apply` vendors everything e
 
 **Files:**
 - `standard/coding/core.md`
+- `standard/coding/sources.md`
 - `standard/coding/typescript.md`
 - `docs/mq-rule-mapping.md`
 - `test/standard-structure.test.js`
@@ -593,6 +597,7 @@ An unrecognised lint-config shape changes one step. `apply` vendors everything e
 
 **Test scenarios:**
 - `install` on an empty repo writes `.ogham/coding/*`, `check.mjs` and `lock.json`, and hashes in the lock match the files.
+- `install` vendors `sources.md` beside `core.md`, so the core's pointer to `.ogham/coding/sources.md` resolves.
 - `update` to the same tag reports no diff and writes nothing.
 - `update` to a newer tag shows a diff for each changed owned file and leaves `ogham.local.md` byte-identical. Covers AE3.
 - `update` when an owned file was edited locally stops and shows that edit, whether or not the edit was committed. The clean-path check does not block this case. With `--force` it overwrites and reports what it discarded.

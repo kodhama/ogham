@@ -21,6 +21,8 @@
 | 16 | Effects live in the shell or in a file whose job is IO | `og-mark-effects`, where place binds effects and not mutators, as in rule 16 | The shell's paths: `src/ui/`, `src/eventsink/`, `api/` |
 | 16 | Core code takes the values an effect would fetch and returns what should happen | `og-thin-effects`, `og-no-hidden-inputs` | The spine's "a pure component emits an event by returning it" |
 
+The section's own heading and its two definitions, "pure" and "an effect", land in `og-pure-by-default` and the core's "Words" paragraph.
+
 ## Checkers
 
 Math Quest's "Checked by" column carries over, with one change. **The lint half is a promise until the preset ships** (U5): the preset ports Math Quest's rule list, and U5's tests hold it to that. Until then, read "the same" below as the split between lint and reviewer, not as a tested list of spellings.
@@ -52,7 +54,7 @@ Three new rules:
 
 Three tighter forms of what it has:
 
-- **An exception names the rule ID.** Math Quest's disable comments name the effect only, as in `-- Mutates: the swap is this function's whole job` (`src/rng.ts`). Under `og-reasoned-exceptions` they also name the `og-` ID.
+- **An exception names the rule ID.** Math Quest's disable comments give a reason that names the effect, as in `-- Mutates: the swap is this function's whole job` (`src/rng.ts`). Under `og-reasoned-exceptions` they also name the `og-` ID.
 - **Every disable comment needs its text**, including ones for Math Quest's own lint rules. `src/content/serving/serve.ts` has one with none today.
 - **`og-no-module-state` also names other globals**, where rule 14 names module level only.
 
