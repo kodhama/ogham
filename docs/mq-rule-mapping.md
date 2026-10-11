@@ -67,5 +67,5 @@ Existing code that breaks these is recorded when Math Quest adopts ogham, in tha
 The maintainer settled three questions on 2026-10-11. The first two keep Math Quest's rule as it is; the third is new.
 
 - **No named exceptions to thin effects.** Rule 15 has none, and neither has `og-thin-effects`. A real case uses a code-level exception.
-- **Performance mutation is a marked effect.** Rule 11's marked-mutator exception stays: allowed when marked, never silent, no benchmark required. Where lint reports the line, the disable comment names the rule ID and the effect (`og-reasoned-exceptions`).
+- **Performance mutation is a marked effect.** Rule 11's marked-mutator exception stays: allowed when marked, never silent, no benchmark required. Where lint reports the line, the disable comment names the rule ID, the effect and the reason (`og-reasoned-exceptions`).
 - **Where an entity's rules live.** New in ogham: builder functions in one module (`og-entity-builders`).

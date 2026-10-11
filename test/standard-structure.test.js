@@ -4,80 +4,26 @@
 // is known to fire, then on the real file.
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
-/**
- * One rule entry as `core.md` writes it.
- * @typedef {{ readonly id: string, readonly rule: string, readonly why: string, readonly checkers: readonly string[] }} Rule
- */
+import {
+  ENTRY_START,
+  MATH_QUEST_IDENTIFIERS,
+  OG_ID,
+  TRACKER_REFERENCES,
+  matches,
+  parseRules,
+  readRepoFile,
+  repoPaths,
+  section,
+  unknownIds,
+} from "./helpers/standard-text.js";
+
+/** @typedef {import("./helpers/standard-text.js").Rule} Rule */
 
 const CHECKERS = ["lint", "reviewer", "structure test"];
 const WORD_BUDGET = 900;
 const MATH_QUEST_RULES = [11, 12, 13, 14, 15, 16];
-const MATH_QUEST_IDENTIFIERS = [
-  /math[ -]?quest/i,
-  /\bMQ-\d+/,
-  /shuffleInPlace/,
-  /StorageLike/,
-  /BootIO/,
-  /eventsink/,
-];
-// Tracker issues, and the plan's own IDs for requirements, rulings and units.
-const TRACKER_REFERENCES = [
-  /\bKOD-\d+/,
-  /\bTRL-\d+/,
-  /\b(?:KTD|AE|R|D|U)\d+\b/,
-];
-
-const ENTRY_START = /^- \*\*`(og-[a-z0-9-]+)`\*\*\s*(.*)$/;
-const OG_ID = /(?<![\w-])og-[a-z0-9]+(?:-[a-z0-9]+)*/g;
-
-/**
- * Effect: reads a file of this repo from disk.
- * @param {string} path a path relative to the repo root
- */
-const readRepoFile = (path) =>
-  readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-
-/**
- * The text after `- <label>:` in an entry's indented lines, or "" when absent.
- * @param {readonly string[]} lines
- * @param {string} label
- */
-const field = (lines, label) =>
-  lines
-    .map((line) => line.trim())
-    .find((line) => line.startsWith(`- ${label}:`))
-    ?.slice(`- ${label}:`.length)
-    .trim() ?? "";
-
-/**
- * Every rule entry in a core document: a top-level bullet opening with a bold
- * `og-` ID, followed by indented `Why:` and `Checked by:` lines.
- * @param {string} text
- * @returns {readonly Rule[]}
- */
-const parseRules = (text) =>
-  text
-    .split(/^(?=- \*\*`og-)/m)
-    .filter((block) => ENTRY_START.test(block.split("\n", 1)[0] ?? ""))
-    .map((block) => {
-      const [head = "", ...rest] = block.split("\n");
-      const end = rest.findIndex((line) => /^\S/.test(line));
-      const body = end === -1 ? rest : rest.slice(0, end);
-      const start = ENTRY_START.exec(head);
-      return {
-        id: start?.[1] ?? "",
-        rule: (start?.[2] ?? "").trim(),
-        why: field(body, "Why"),
-        checkers: field(body, "Checked by")
-          .replace(/\.$/, "")
-          .split(",")
-          .map((checker) => checker.trim())
-          .filter(Boolean),
-      };
-    });
 
 /**
  * What is wrong with a set of rule entries; empty when nothing is.
@@ -111,15 +57,6 @@ const strayBullets = (text) =>
       (line) => /^(?:[-*+]|\d+[.)]) /.test(line) && !ENTRY_START.test(line),
     );
 
-/**
- * `og-` IDs a text mentions that the core does not define.
- * @param {string} text
- * @param {readonly string[]} ids
- */
-const unknownIds = (text, ids) => [
-  ...new Set((text.match(OG_ID) ?? []).filter((id) => !ids.includes(id))),
-];
-
 /** @param {string} text */
 const wordCount = (text) => text.split(/\s+/).filter(Boolean).length;
 
@@ -132,29 +69,6 @@ const budgetProblems = (text, budget) =>
   wordCount(text) <= budget
     ? []
     : [`${wordCount(text)} words, over the budget of ${budget}`];
-
-/**
- * Tokens shaped like a path into a repo's own tree: a common top-level folder
- * name, or one of this repo's own, followed by a slash, wherever it sits in
- * the path. Web addresses are left out first, since their paths are not the
- * repo's. This is a tripwire over a list of names, not a path parser: a
- * general one would flag "and/or" and import paths in examples.
- * @param {string} text
- */
-const repoPaths = (text) =>
-  text
-    .replace(/https:\/\/[^\s>)]+/g, "")
-    .match(
-      /(?<![\w-])(?:src|api|lib|app|tests?|packages|docs|scripts|server|client|standard|bin|eslint|templates|\.github)\/[\w./-]*/g,
-    ) ?? [];
-
-/**
- * The patterns a text matches, as their source strings.
- * @param {string} text
- * @param {readonly RegExp[]} patterns
- */
-const matches = (text, patterns) =>
-  patterns.filter((pattern) => pattern.test(text)).map(String);
 
 /**
  * Link targets that are not absolute `https://` URLs, from inline links,
@@ -170,14 +84,6 @@ const relativeLinks = (text) =>
     .flatMap((pattern) => [...text.matchAll(pattern)])
     .map((match) => match[1] ?? "")
     .filter((target) => !target.startsWith("https://"));
-
-/**
- * The part of a document under one `## ` heading, up to the next one.
- * @param {string} text
- * @param {string} heading
- */
-const section = (text, heading) =>
-  text.split(/^## /m).find((part) => part.startsWith(`${heading}\n`)) ?? "";
 
 /** @param {readonly string[]} cells */
 const isSeparator = (cells) => cells.every((cell) => /^:?-+:?$/.test(cell));

@@ -20,7 +20,14 @@ The same goes for randomness (take a seed), `process.env` (take the parsed confi
 
 **An injected clock or store is still an effect.** Edge code may take them as interfaces so a test can pass fakes, but logic receives the value they produced, never the interface.
 
-**Lint reports the edge's own read too.** It cannot tell the edge from logic, so it reports the one place that is meant to read the clock. That read follows the rule. Silence lint on that line with a disable comment, as [Exceptions](#exceptions) shows, or exempt the edge's folder by name in `ogham.local.md`.
+**Lint reports the edge's own read too.** It cannot tell the edge from logic, so it reports the one place that is meant to read the clock. That read follows the rule, so its disable comment is not an exception. It names the rule ID and the read, and its third part says that this is the edge:
+
+```ts
+// eslint-disable-next-line ogham/no-restricted-properties -- og-no-hidden-inputs: reads the clock; this is the edge, and the value is passed in
+const now = Date.now();
+```
+
+Or exempt the edge's folder by name in `ogham.local.md`.
 
 ## Returning new values
 
@@ -195,7 +202,7 @@ Where only the reviewer checks the rule, it is a plain comment in the same shape
 // og-thin-effects: pages through the table and decides per page; the rows do not fit in memory
 ```
 
-- **The text after `--` is required**: the rule ID, the effect, and why the rule cannot hold here. A disable with no text is itself reported, and so is a disable that no longer silences anything.
+- **The text after `--` is required**: the rule ID, the effect, and why the rule cannot hold here. For the edge's own read, which follows the rule, the third part says that this is the edge ([Pure functions and hidden inputs](#pure-functions-and-hidden-inputs)). A disable with no text is itself reported, and so is a disable that no longer silences anything.
 - **The function still carries its markers** (`og-mark-effects`). A marked mutator that lint does not report needs no comment at all.
 - **In-place mutation for performance is allowed** as a marked mutator. No benchmark is required.
 - **A loosening for a folder or the whole repo** is a named exemption with its reason in `ogham.local.md`, never a bare config change.
