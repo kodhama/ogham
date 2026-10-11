@@ -8,6 +8,7 @@ import { test } from "node:test";
 
 import {
   ENTRY_START,
+  HARNESS_WORDING,
   MATH_QUEST_IDENTIFIERS,
   OG_ID,
   TRACKER_REFERENCES,
@@ -281,6 +282,10 @@ test("the text checks fire on bad text", () => {
   assert.deepEqual(matches("as shuffleInPlace does", MATH_QUEST_IDENTIFIERS), [
     "/shuffleInPlace/",
   ]);
+  assert.deepEqual(matches("run `/code-review` in Claude Code", HARNESS_WORDING), [
+    "/claude/i",
+  ]);
+  assert.deepEqual(matches("a reviewing agent or a person", HARNESS_WORDING), []);
   assert.deepEqual(
     relativeLinks(
       '[a](typescript.md) [b](https://example.com/x) [c](#words)\n   [d]: ./rubric.md\n<a href="core.md">e</a>\n',
@@ -386,6 +391,7 @@ test("the core reads the same inlined into any repo", () => {
   assert.deepEqual(repoPaths(core), []);
   assert.deepEqual(matches(core, MATH_QUEST_IDENTIFIERS), []);
   assert.deepEqual(matches(core, TRACKER_REFERENCES), []);
+  assert.deepEqual(matches(core, HARNESS_WORDING), []);
   assert.deepEqual(relativeLinks(core), []);
 });
 
@@ -394,6 +400,7 @@ test("every source the core cites is on the sources page, and no other", () => {
   assert.deepEqual(citationProblems(core, sourcesPage), []);
   assert.deepEqual(matches(sourcesPage, MATH_QUEST_IDENTIFIERS), []);
   assert.deepEqual(matches(sourcesPage, TRACKER_REFERENCES), []);
+  assert.deepEqual(matches(sourcesPage, HARNESS_WORDING), []);
   assert.deepEqual(repoPaths(sourcesPage), []);
 });
 
@@ -409,6 +416,7 @@ test("the TypeScript page cites only core rules and maps every linted one", () =
   assert.deepEqual(repoPaths(typescriptPage), []);
   assert.deepEqual(matches(typescriptPage, MATH_QUEST_IDENTIFIERS), []);
   assert.deepEqual(matches(typescriptPage, TRACKER_REFERENCES), []);
+  assert.deepEqual(matches(typescriptPage, HARNESS_WORDING), []);
 });
 
 test("every Math Quest rule 11–16 maps to a core rule or to its local layer", () => {

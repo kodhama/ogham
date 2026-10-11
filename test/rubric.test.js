@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  HARNESS_WORDING,
   MATH_QUEST_IDENTIFIERS,
   TRACKER_REFERENCES,
   field,
@@ -27,8 +28,49 @@ import {
  * @typedef {{ readonly id: string, readonly lookFor: string, readonly lint: string }} Check
  */
 
+/**
+ * Something a section has to tell the reviewer: its name, and the patterns
+ * one line of the section must all match.
+ * @typedef {{ readonly name: string, readonly patterns: readonly RegExp[] }} Obligation
+ */
+
 const FINDING_FIELDS = ["Rule", "Location", "Evidence", "Exemption"];
-const EXCEPTION_SHAPE = "og-<id>: <effect>; <reason>";
+
+/** @type {readonly Obligation[]} */
+const EXCEPTION_OBLIGATIONS = [
+  {
+    name: "the exception comment's shape",
+    patterns: [/og-<id>: <effect>; <reason>/],
+  },
+  {
+    name: "the lint disable form",
+    patterns: [/lint reports the line/i, /disable comment/],
+  },
+  {
+    name: "the plain comment form",
+    patterns: [/only the reviewer/i, /plain comment/],
+  },
+  { name: "the parts are true", patterns: [/three parts are true/i] },
+  {
+    name: "a marked mutator needs no comment and no benchmark",
+    patterns: [/marked mutator/, /no comment/, /benchmark/],
+  },
+  {
+    name: "an exemption entry's parts",
+    patterns: [/entry names/, /rule ID/, /scope/, /reason/],
+  },
+  {
+    name: "a lint loosening needs an entry",
+    patterns: [/lint config/, /entry/, /finding/],
+  },
+];
+
+/** @type {readonly Obligation[]} */
+const LOCAL_LAYER_OBLIGATIONS = [
+  { name: "local rules", patterns: [/`local-` rule/, /cite/] },
+  { name: "tightenings", patterns: [/tightening/, /stricter/] },
+  { name: "exemptions", patterns: [/exemption/, /scope/, /no finding/] },
+];
 
 /**
  * Every check in a rubric's checks section: an entry with an indented
@@ -90,6 +132,24 @@ const checkProblems = (checks, rules) => {
 };
 
 /**
+ * The obligations a section does not meet: those with no single line that
+ * matches all of their patterns.
+ * @param {string} text
+ * @param {readonly Obligation[]} obligations
+ */
+const missingObligations = (text, obligations) =>
+  obligations
+    .filter(
+      (obligation) =>
+        !text
+          .split("\n")
+          .some((line) =>
+            obligation.patterns.every((pattern) => pattern.test(line)),
+          ),
+    )
+    .map((obligation) => obligation.name);
+
+/**
  * The fields a finding format names: the bold label that opens each bullet.
  * @param {string} text
  */
@@ -97,17 +157,35 @@ const findingFields = (text) =>
   [...text.matchAll(/^- \*\*([^*:]+):\*\*/gm)].map((match) => match[1] ?? "");
 
 /**
- * What is wrong with a finding format: a missing field, or a rule field that
- * does not ask for a rule ID.
+ * The field labels of a finding format's worked example: the word that opens
+ * each line of its fenced block.
+ * @param {string} text
+ */
+const exampleFields = (text) =>
+  [
+    ...(/^```text\n([\s\S]*?)^```/m.exec(text)?.[1] ?? "").matchAll(
+      /^([A-Z][a-z]+):/gm,
+    ),
+  ].map((match) => match[1] ?? "");
+
+/**
+ * What is wrong with a finding format: a missing or extra field, a rule field
+ * that does not ask for a rule ID, or an example that uses other fields.
  * @param {string} text
  */
 const findingFormatProblems = (text) => [
   ...FINDING_FIELDS.filter((name) => !findingFields(text).includes(name)).map(
     (name) => `no "${name}" field`,
   ),
+  ...findingFields(text)
+    .filter((name) => !FINDING_FIELDS.includes(name))
+    .map((name) => `"${name}" is not a field of the format`),
   ...(/^- \*\*Rule:\*\*.*`og-`/m.test(text)
     ? []
     : ["the Rule field does not ask for a rule ID"]),
+  ...(exampleFields(text).join() === FINDING_FIELDS.join()
+    ? []
+    : ["the example does not use the format's fields"]),
 ];
 
 /** @type {readonly Rule[]} */
@@ -167,11 +245,38 @@ test("the check checks fire on a bad set of checks", () => {
   );
 });
 
+test("the obligation check fires when no one line says it", () => {
+  /** @type {readonly Obligation[]} */
+  const obligations = [{ name: "the entry", patterns: [/entry/, /reason/] }];
+  assert.deepEqual(
+    missingObligations("- The entry gives a reason.\n", obligations),
+    [],
+  );
+  assert.deepEqual(
+    missingObligations("- The entry is named.\n- A reason helps.\n", obligations),
+    ["the entry"],
+  );
+  assert.deepEqual(
+    missingObligations("", EXCEPTION_OBLIGATIONS),
+    EXCEPTION_OBLIGATIONS.map((obligation) => obligation.name),
+  );
+});
+
 test("the finding format check fires on a missing field", () => {
-  const format =
-    "- **Rule:** the `og-` or `local-` ID.\n- **Location:** file and line.\n- **Evidence:** the code.\n- **Exemption:** `none`.\n";
+  const example =
+    "\n```text\nRule: og-a\nLocation: a.ts:1\nEvidence: `x.push(y)`: a write.\nExemption: none\n```\n";
+  const format = `- **Rule:** the \`og-\` or \`local-\` ID.\n- **Location:** file and line.\n- **Evidence:** the code.\n- **Exemption:** \`none\`.\n${example}`;
   assert.deepEqual(findingFields(format), FINDING_FIELDS);
+  assert.deepEqual(exampleFields(format), FINDING_FIELDS);
   assert.deepEqual(findingFormatProblems(format), []);
+  assert.deepEqual(
+    findingFormatProblems(`- **Severity:** how bad.\n${format}`),
+    ['"Severity" is not a field of the format'],
+  );
+  assert.deepEqual(
+    findingFormatProblems(format.replace("Exemption: none\n", "")),
+    ["the example does not use the format's fields"],
+  );
   assert.deepEqual(
     findingFormatProblems(format.replace("- **Evidence:** the code.\n", "")),
     ['no "Evidence" field'],
@@ -185,6 +290,7 @@ test("the finding format check fires on a missing field", () => {
     'no "Evidence" field',
     'no "Exemption" field',
     "the Rule field does not ask for a rule ID",
+    "the example does not use the format's fields",
   ]);
 });
 
@@ -203,14 +309,19 @@ test("the rubric cites only core rules", () => {
 });
 
 test("the rubric covers both exception forms, exemptions and the local layer", () => {
-  const exceptions = section(rubric, "Exceptions and exemptions");
-  assert.ok(exceptions.includes(EXCEPTION_SHAPE), "no exception comment shape");
-  assert.match(exceptions, /disable comment/);
-  assert.match(exceptions, /plain comment/);
-  assert.ok(exceptions.includes("`ogham.local.md`"), "no exemption check");
-  assert.ok(
-    section(rubric, "The local layer").includes("`local-`"),
-    "the local layer section does not name local rules",
+  assert.deepEqual(
+    missingObligations(
+      section(rubric, "Exceptions and exemptions"),
+      EXCEPTION_OBLIGATIONS,
+    ),
+    [],
+  );
+  assert.deepEqual(
+    missingObligations(
+      section(rubric, "The local layer"),
+      LOCAL_LAYER_OBLIGATIONS,
+    ),
+    [],
   );
 });
 
@@ -224,4 +335,5 @@ test("the rubric reads the same vendored into any repo", () => {
   assert.deepEqual(repoPaths(rubric), []);
   assert.deepEqual(matches(rubric, MATH_QUEST_IDENTIFIERS), []);
   assert.deepEqual(matches(rubric, TRACKER_REFERENCES), []);
+  assert.deepEqual(matches(rubric, HARNESS_WORDING), []);
 });

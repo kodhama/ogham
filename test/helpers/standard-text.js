@@ -30,6 +30,16 @@ export const TRACKER_REFERENCES = [
   /\b(?:KTD|AE|R|D|U)\d+\b/,
 ];
 
+// Names of agent harnesses and their skills: shipped text has to read the
+// same under any of them.
+export const HARNESS_WORDING = [
+  /claude/i,
+  /codex/i,
+  /copilot/i,
+  /\bce-[a-z]/,
+  /slash command/i,
+];
+
 export const ENTRY_START = /^- \*\*`(og-[a-z0-9-]+)`\*\*\s*(.*)$/;
 export const OG_ID = /(?<![\w-])og-[a-z0-9]+(?:-[a-z0-9]+)*/g;
 
