@@ -39,6 +39,10 @@ const FINDING_FIELDS = ["Rule", "Location", "Evidence", "Exemption"];
 /** @type {readonly Obligation[]} */
 const EXCEPTION_OBLIGATIONS = [
   {
+    name: "a complete exception covers its breach",
+    patterns: [/complete/, /covers/, /finding/],
+  },
+  {
     name: "the exception comment's shape",
     patterns: [/og-<id>: <effect>; <reason>/],
   },
@@ -48,12 +52,24 @@ const EXCEPTION_OBLIGATIONS = [
   },
   {
     name: "the plain comment form",
-    patterns: [/only the reviewer/i, /plain comment/],
+    patterns: [/lint does not report the line/i, /plain comment/],
   },
   { name: "the parts are true", patterns: [/three parts/i, /true/] },
   {
     name: "a marked mutator needs no comment and no benchmark",
     patterns: [/marked mutator/, /no (?:exception )?comment/, /benchmark/],
+  },
+  {
+    name: "an exception does not replace the markers",
+    patterns: [/exception/, /markers/, /`og-mark-effects`/],
+  },
+  {
+    name: "the edge's own read",
+    patterns: [/edge's own read/, /not an exception/],
+  },
+  {
+    name: "an exemption's reach",
+    patterns: [/exemption covers/, /scope/],
   },
   {
     name: "exemptions live in the local layer's file",
@@ -194,6 +210,9 @@ const findingFormatProblems = (text) => [
   ...(exampleFields(text).join() === FINDING_FIELDS.join()
     ? []
     : ["the example does not use the format's fields"]),
+  ...(/^Rule: (?:og|local)-[a-z0-9-]+$/m.test(text)
+    ? []
+    : ["the example's rule is not a rule ID"]),
 ];
 
 /** @type {readonly Rule[]} */
@@ -286,6 +305,10 @@ test("the finding format check fires on a missing field", () => {
     ["the example does not use the format's fields"],
   );
   assert.deepEqual(
+    findingFormatProblems(format.replace("Rule: og-a", "Rule: the first rule")),
+    ["the example's rule is not a rule ID"],
+  );
+  assert.deepEqual(
     findingFormatProblems(format.replace("- **Evidence:** the code.\n", "")),
     ['no "Evidence" field'],
   );
@@ -299,6 +322,7 @@ test("the finding format check fires on a missing field", () => {
     'no "Exemption" field',
     "the Rule field does not ask for a rule ID",
     "the example does not use the format's fields",
+    "the example's rule is not a rule ID",
   ]);
 });
 
@@ -310,6 +334,10 @@ test("the rubric has one check per core rule and agrees with the core on lint", 
   const checks = parseChecks(section(rubric, "Checks, one per core rule"));
   assert.ok(checks.length > 0, "the rubric has no checks section");
   assert.deepEqual(checkProblems(checks, rules), []);
+});
+
+test("the rubric says that the repo's reviewer runs the review", () => {
+  assert.match(rubric.split("\n## ", 1)[0] ?? "", /runs no review/);
 });
 
 test("the rubric cites only core rules", () => {

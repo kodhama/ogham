@@ -49,8 +49,18 @@ cited as `og-mark-effects`.** The name or the doc line shows the intent, and
 the missing marker is the breach. A write in a function that says nothing of
 the kind is cited under the rule the write breaks. A mutable type alone does
 not show intent: a write to a parameter only compiles where the type allows
-it. An effect in a function that also decides is cited as `og-thin-effects`.
-One breach gets one finding.
+it. Where an exception or exemption covers the write, the function is a
+mutator all the same and still owes its markers, so a missing one is cited as
+`og-mark-effects`. An effect in a function that also decides is cited as
+`og-thin-effects`, or as `og-no-hidden-inputs` where the effect is a read of
+a hidden input. One breach gets one finding.
+
+**2026-10-11 decision: a plain exception comment goes wherever lint does not
+report the line.** The core splits on the line: "where lint reports the line,
+that comment is the lint disable". So a breach of a linted rule in a spelling
+lint cannot see takes the plain comment too. The rubric and the TypeScript
+page now say so. The earlier record on the core's shape says "where only the
+reviewer checks the rule", which is the narrower case of the same thing.
 
 **2026-10-11 decision: the rubric does not grade "read-only by default" on
 its own.** The core's marker rule is about a function that mutates or causes
@@ -75,8 +85,8 @@ a three-part comment "where a rule cannot hold", which does not describe this
 case, so the rubric does not ask for the three parts here and makes no finding
 of the comment's form. It checks the claim: the read sits at the program's edge, in a
 function that makes no decisions and passes the value into logic. Where the
-comment claims the edge and the function also decides, the read is a finding
-under `og-no-hidden-inputs`. A complete exception comment is a different
+comment claims the edge and the read is somewhere else, or its function also
+decides, the read is a finding under `og-no-hidden-inputs`. A complete exception comment is a different
 case and still covers its breach. The TypeScript page
 shows a comment in the usual shape as the form to copy. Turned down: holding
 the edge comment to the three parts, which would be a finding with no core
