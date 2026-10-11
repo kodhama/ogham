@@ -37,6 +37,37 @@ const FINDING_FIELDS = ["Rule", "Location", "Evidence", "Exemption"];
 // says what the core says is for the reviewer of a change to judge.
 
 /** @type {readonly Obligation[]} */
+const OPENING_OBLIGATIONS = [
+  {
+    name: "the core is the standard",
+    patterns: [/`\.ogham\/coding\/core\.md`/, /standard/],
+  },
+  { name: "the repo's reviewer runs the review", patterns: [/runs no review/] },
+];
+
+/** @type {readonly Obligation[]} */
+const HOW_TO_USE_OBLIGATIONS = [
+  { name: "what is graded", patterns: [/diff/, /adds or edits/] },
+  { name: "reading around the diff", patterns: [/surrounding code/] },
+  {
+    name: "the local layer is read first",
+    patterns: [/`ogham\.local\.md`/, /first/i],
+  },
+  { name: "every check is run", patterns: [/every check/i] },
+  { name: "findings use the format", patterns: [/finding format/, /rule ID/] },
+  {
+    name: "the line is graded before the function",
+    patterns: [
+      /`og-no-hidden-inputs`/,
+      /`og-return-new-values`/,
+      /`og-mark-effects`/,
+      /`og-thin-effects`/,
+    ],
+  },
+  { name: "what lint is trusted for", patterns: [/lint/i, /cannot see/] },
+];
+
+/** @type {readonly Obligation[]} */
 const EXCEPTION_OBLIGATIONS = [
   {
     name: "a complete exception covers its breach",
@@ -336,8 +367,15 @@ test("the rubric has one check per core rule and agrees with the core on lint", 
   assert.deepEqual(checkProblems(checks, rules), []);
 });
 
-test("the rubric says that the repo's reviewer runs the review", () => {
-  assert.match(rubric.split("\n## ", 1)[0] ?? "", /runs no review/);
+test("the rubric opens with what it is and how to use it", () => {
+  assert.deepEqual(
+    missingObligations(rubric.split("\n## ", 1)[0] ?? "", OPENING_OBLIGATIONS),
+    [],
+  );
+  assert.deepEqual(
+    missingObligations(section(rubric, "How to use it"), HOW_TO_USE_OBLIGATIONS),
+    [],
+  );
 });
 
 test("the rubric cites only core rules", () => {
@@ -364,6 +402,7 @@ test("the rubric covers both exception forms, exemptions and the local layer", (
 test("the rubric names the finding format with a rule-ID field", () => {
   const format = section(rubric, "Finding format");
   assert.ok(format, 'the rubric has no "Finding format" section');
+  assert.match(format, /^One finding per breach/m);
   assert.deepEqual(findingFormatProblems(format), []);
 });
 

@@ -44,16 +44,22 @@ change takes a whole file out for the rule it names: suppressions count
 breaches per file and rule, so a new breach can replace an old one unseen.
 Where the reviewer cannot tell whether lint ran, it checks everything.
 
-**2026-10-11 decision: a function that says it mutates and lacks a marker is
-cited as `og-mark-effects`.** The name or the doc line shows the intent, and
-the missing marker is the breach. A write in a function that says nothing of
-the kind is cited under the rule the write breaks. A mutable type alone does
-not show intent: a write to a parameter only compiles where the type allows
-it. Where an exception or exemption covers the write, the function is a
-mutator all the same and still owes its markers, so a missing one is cited as
-`og-mark-effects`. An effect in a function that also decides is cited as
-`og-thin-effects`, or as `og-no-hidden-inputs` where the effect is a read of
-a hidden input. One breach gets one finding.
+**2026-10-11 decision: the reviewer grades the line first, then the
+function.** Two core rules are about what one line does: `og-no-hidden-inputs`
+(a read) and `og-return-new-values` (a write). A line that breaks one of them,
+with no exception or exemption claimed for it, is one finding under that rule,
+and the function is not graded for that line. A line that is allowed (it
+follows its rule, its function says by name or doc line that it mutates, or a
+complete exception or an exemption covers it) sends the reviewer to the
+function: its markers (`og-mark-effects`) and whether it also decides
+(`og-thin-effects`), each its own finding. So an exception or exemption covers
+the one rule it names, and the function still owes the rest: a covered write
+in an unmarked function is cited as `og-mark-effects`, and a covered clock
+read in a function that decides is cited as `og-thin-effects`. A mutable type
+alone does not show that a function means to mutate: a write to a parameter
+only compiles where the type allows it. Turned down: a sentence per pair of
+rules saying which one wins. Three review rounds each found a pair, or a pair
+under an exemption, that the sentences answered two ways.
 
 **2026-10-11 decision: a plain exception comment goes wherever lint does not
 report the line.** The core splits on the line: "where lint reports the line,
@@ -83,10 +89,10 @@ logic, so it reports the one read that follows `og-no-hidden-inputs`, and the
 line carries a disable comment saying that this is the edge. The core asks for
 a three-part comment "where a rule cannot hold", which does not describe this
 case, so the rubric does not ask for the three parts here and makes no finding
-of the comment's form. It checks the claim: the read sits at the program's edge, in a
-function that makes no decisions and passes the value into logic. Where the
-comment claims the edge and the read is somewhere else, or its function also
-decides, the read is a finding under `og-no-hidden-inputs`. A complete exception comment is a different
+of the comment's form. It checks the claim: the read sits where effects belong (the
+program's edge, or a file whose job is IO), in a function that makes no
+decisions and passes the value into logic. Where that does not hold, the read
+is a finding under `og-no-hidden-inputs`. A complete exception comment is a different
 case and still covers its breach. The TypeScript page
 shows a comment in the usual shape as the form to copy. Turned down: holding
 the edge comment to the three parts, which would be a finding with no core
