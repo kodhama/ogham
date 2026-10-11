@@ -20,9 +20,10 @@ to the core's "Checked by" line: `none` exactly where the core names no lint.
 
 **2026-10-11 decision: a finding cites the rule that is broken.**
 `og-reasoned-exceptions` is cited only when the exception or exemption itself
-is what is wrong: a missing part, an untrue part, or a loosening with no
-entry. Turned down: citing `og-reasoned-exceptions` for every unmarked breach,
-which would hide which rule the code broke.
+is what is wrong: a missing part, an untrue part, a loosening with no entry,
+or a marked mutator's missing comment where lint reports the line. Turned
+down: citing `og-reasoned-exceptions` for every unmarked breach, which would
+hide which rule the code broke.
 
 **2026-10-11 decision: a breach that a complete exception covers is not a
 finding.** The reviewer accepts it (plan AE2). The finding format's fourth
@@ -48,7 +49,9 @@ Where the reviewer cannot tell whether lint ran, it checks everything.
 function.** Two core rules are about what one line does: `og-no-hidden-inputs`
 (a read) and `og-return-new-values` (a write). A line that breaks one of them,
 with no exception or exemption claimed for it, is one finding under that rule,
-and the function is not graded for that line. A line that is allowed (it
+and the function is not graded for that line. A line whose claimed exception
+is incomplete is one finding under `og-reasoned-exceptions`, and the function
+is not graded for it either. A line that is allowed (it
 follows its rule, its function says by name or doc line that it mutates, or a
 complete exception or an exemption covers it) sends the reviewer to the
 function: its markers (`og-mark-effects`) and whether it also decides
@@ -84,20 +87,39 @@ outside, which is the limit the core's "while nothing outside can see it yet"
 sets.
 
 **2026-10-11 decision: the edge's own read is not an exception, and the
-reviewer checks only that it is the edge.** Lint cannot tell the edge from
+reviewer grades the read, not its comment.** Lint cannot tell the edge from
 logic, so it reports the one read that follows `og-no-hidden-inputs`, and the
 line carries a disable comment saying that this is the edge. The core asks for
 a three-part comment "where a rule cannot hold", which does not describe this
-case, so the rubric does not ask for the three parts here and makes no finding
-of the comment's form. It checks the claim: the read sits where effects belong (the
-program's edge, or a file whose job is IO), in a function that makes no
-decisions and passes the value into logic. Where that does not hold, the read
-is a finding under `og-no-hidden-inputs`. A complete exception comment is a different
-case and still covers its breach. The TypeScript page
-shows a comment in the usual shape as the form to copy. Turned down: holding
-the edge comment to the three parts, which would be a finding with no core
-rule behind it; and a new core rule for it, which needs the maintainer and
-more than the two words of budget the core has left.
+case, so the rubric makes no finding of the comment's form. It grades the read
+by the `og-no-hidden-inputs` check alone: a read that follows the rule is not
+a finding whatever lint says, and one that does not is a finding under that
+rule, since saying that this is the edge is no exception. The function holding
+the read is then graded like any other, for its markers and for deciding. A
+complete exception comment is a different case and still covers its breach.
+The TypeScript page shows a comment in the usual shape as the form to copy.
+Turned down: holding the edge comment to the three parts, which would be a
+finding with no core rule behind it; a new core rule for it, which needs the
+maintainer and more than the two words of budget the core has left; and
+conditions of the bullet's own (where the read sits, and that its function
+decides nothing), which an earlier draft stated beside the check. They gave an
+edge function that also decides a second rule ID, and an IO function stamping
+its own log line a finding the core does not back.
+
+**2026-10-11 decision: the rubric does not give every code shape one rule
+ID.** The core's rules overlap, so one line can break two of them. A callback
+that writes to its enclosing function's parameter breaks
+`og-functions-as-values` and `og-return-new-values`. A clock read in logic
+under a comment in the exception's shape, whose reason wrongly says this is
+the edge, breaks `og-no-hidden-inputs` and `og-reasoned-exceptions`. The
+line-first rule above settles the commonest overlaps, and the rubric leaves
+the rest: a finding cited under either true ID is a correct finding. What the
+page must not do is give the same code a finding by one sentence and none by
+another, or contradict the core. Turned down: a sentence for each overlap.
+Four review rounds each built a shape that the newest such sentence answered
+two ways, and nothing suggests a fifth would not. The overlap is a property of
+the core's eleven rules; narrowing it means changing the core, which is the
+maintainer's call. The acceptance run (plan U10) accepts either true ID.
 
 **2026-10-11 decision: the rubric sets no severity.** How findings are ranked,
 and whether one blocks a merge, is the repo's choice: the companion supplies

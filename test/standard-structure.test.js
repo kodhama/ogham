@@ -7,7 +7,6 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
-  ENTRY_START,
   HARNESS_WORDING,
   MATH_QUEST_IDENTIFIERS,
   OG_ID,
@@ -18,6 +17,7 @@ import {
   readRepoFile,
   repoPaths,
   section,
+  strayBullets,
   unknownIds,
 } from "./helpers/standard-text.js";
 
@@ -45,19 +45,6 @@ const ruleProblems = (rules) => [
     .filter((id, index, ids) => ids.indexOf(id) !== index)
     .map((id) => `${id}: defined twice`),
 ];
-
-/**
- * Top-level list items that are not rule entries, whatever their marker. In
- * the core a top-level list item is a rule, so one written without its ID is
- * reported. A rule written as a paragraph is the reviewer's to catch.
- * @param {string} text
- */
-const strayBullets = (text) =>
-  text
-    .split("\n")
-    .filter(
-      (line) => /^(?:[-*+]|\d+[.)]) /.test(line) && !ENTRY_START.test(line),
-    );
 
 /** @param {string} text */
 const wordCount = (text) => text.split(/\s+/).filter(Boolean).length;

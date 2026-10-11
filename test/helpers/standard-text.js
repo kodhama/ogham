@@ -102,6 +102,20 @@ export const parseRules = (text) =>
   }));
 
 /**
+ * Top-level list items that are not `og-` entries, whatever their marker.
+ * Where every top-level list item is an entry, as in the core's rules and the
+ * rubric's checks, one written without its ID is reported. An entry written
+ * as a paragraph is the reviewer's to catch.
+ * @param {string} text
+ */
+export const strayBullets = (text) =>
+  text
+    .split("\n")
+    .filter(
+      (line) => /^(?:[-*+]|\d+[.)]) /.test(line) && !ENTRY_START.test(line),
+    );
+
+/**
  * `og-` IDs a text mentions that the core does not define.
  * @param {string} text
  * @param {readonly string[]} ids

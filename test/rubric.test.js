@@ -13,6 +13,7 @@ import {
   portabilityProblems,
   readRepoFile,
   section,
+  strayBullets,
   unknownIds,
 } from "./helpers/standard-text.js";
 
@@ -365,6 +366,10 @@ test("the rubric has one check per core rule and agrees with the core on lint", 
   const checks = parseChecks(section(rubric, "Checks, one per core rule"));
   assert.ok(checks.length > 0, "the rubric has no checks section");
   assert.deepEqual(checkProblems(checks, rules), []);
+  assert.deepEqual(
+    strayBullets(section(rubric, "Checks, one per core rule")),
+    [],
+  );
 });
 
 test("the rubric opens with what it is and how to use it", () => {
