@@ -196,7 +196,7 @@ Code elsewhere never writes an `Email` literal or a spread copy of one; it calls
 buffer[offset] = sample;
 ```
 
-Where only the reviewer checks the rule, it is a plain comment in the same shape:
+Where lint does not report the line, it is a plain comment in the same shape:
 
 ```ts
 // og-thin-effects: pages through the table and decides per page; the rows do not fit in memory
@@ -222,7 +222,7 @@ The preset registers ESLint's own rules under an `ogham/` prefix, so they never 
 **Lint is a tripwire for the common spellings, not a proof.** The reviewer checks what it cannot see:
 
 - a method call that mutates a parameter, such as `items.push(x)`;
-- a write that reaches a parameter by another name: an alias (`const c = cart; c.total = x`), a destructured part, or a loop variable over one of its collections;
+- a write that reaches a parameter by another name: an alias (`const c = cart; c.total = x`), a part destructured from it in the function body, or a loop variable over one of its collections;
 - a hidden input read through an alias (`const clock = Date; clock.now()`) or through `globalThis`;
 - a top-level `const` holding a collection that is written later;
 - every rule the table does not list.

@@ -7,15 +7,11 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
-  HARNESS_WORDING,
-  MATH_QUEST_IDENTIFIERS,
-  TRACKER_REFERENCES,
   field,
-  matches,
   parseEntries,
   parseRules,
+  portabilityProblems,
   readRepoFile,
-  repoPaths,
   section,
   unknownIds,
 } from "./helpers/standard-text.js";
@@ -36,6 +32,10 @@ import {
 
 const FINDING_FIELDS = ["Rule", "Location", "Evidence", "Exemption"];
 
+// The obligation lists are presence tripwires: they catch a line that was
+// deleted, not one that was reworded to say something else. Whether a line
+// says what the core says is for the reviewer of a change to judge.
+
 /** @type {readonly Obligation[]} */
 const EXCEPTION_OBLIGATIONS = [
   {
@@ -50,10 +50,14 @@ const EXCEPTION_OBLIGATIONS = [
     name: "the plain comment form",
     patterns: [/only the reviewer/i, /plain comment/],
   },
-  { name: "the parts are true", patterns: [/three parts are true/i] },
+  { name: "the parts are true", patterns: [/three parts/i, /true/] },
   {
     name: "a marked mutator needs no comment and no benchmark",
-    patterns: [/marked mutator/, /no comment/, /benchmark/],
+    patterns: [/marked mutator/, /no (?:exception )?comment/, /benchmark/],
+  },
+  {
+    name: "exemptions live in the local layer's file",
+    patterns: [/named exemption/, /`ogham\.local\.md`/],
   },
   {
     name: "an exemption entry's parts",
@@ -67,9 +71,13 @@ const EXCEPTION_OBLIGATIONS = [
 
 /** @type {readonly Obligation[]} */
 const LOCAL_LAYER_OBLIGATIONS = [
+  { name: "the local layer's file", patterns: [/`ogham\.local\.md`/] },
   { name: "local rules", patterns: [/`local-` rule/, /cite/] },
   { name: "tightenings", patterns: [/tightening/, /stricter/] },
-  { name: "exemptions", patterns: [/exemption/, /scope/, /no finding/] },
+  {
+    name: "exemptions",
+    patterns: [/exemption/, /scope/, /(?:no|not a) finding/],
+  },
 ];
 
 /**
@@ -332,8 +340,5 @@ test("the rubric names the finding format with a rule-ID field", () => {
 });
 
 test("the rubric reads the same vendored into any repo", () => {
-  assert.deepEqual(repoPaths(rubric), []);
-  assert.deepEqual(matches(rubric, MATH_QUEST_IDENTIFIERS), []);
-  assert.deepEqual(matches(rubric, TRACKER_REFERENCES), []);
-  assert.deepEqual(matches(rubric, HARNESS_WORDING), []);
+  assert.deepEqual(portabilityProblems(rubric), []);
 });

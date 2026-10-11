@@ -14,6 +14,7 @@ import {
   TRACKER_REFERENCES,
   matches,
   parseRules,
+  portabilityProblems,
   readRepoFile,
   repoPaths,
   section,
@@ -287,6 +288,15 @@ test("the text checks fire on bad text", () => {
   ]);
   assert.deepEqual(matches("a reviewing agent or a person", HARNESS_WORDING), []);
   assert.deepEqual(
+    portabilityProblems("see src/a.ts for MQ-12, per KTD3, in Claude Code"),
+    [
+      "src/a.ts",
+      String(MATH_QUEST_IDENTIFIERS[1]),
+      String(TRACKER_REFERENCES[2]),
+      String(HARNESS_WORDING[0]),
+    ],
+  );
+  assert.deepEqual(
     relativeLinks(
       '[a](typescript.md) [b](https://example.com/x) [c](#words)\n   [d]: ./rubric.md\n<a href="core.md">e</a>\n',
     ),
@@ -388,20 +398,14 @@ test("the core stays within its word budget", () => {
 });
 
 test("the core reads the same inlined into any repo", () => {
-  assert.deepEqual(repoPaths(core), []);
-  assert.deepEqual(matches(core, MATH_QUEST_IDENTIFIERS), []);
-  assert.deepEqual(matches(core, TRACKER_REFERENCES), []);
-  assert.deepEqual(matches(core, HARNESS_WORDING), []);
+  assert.deepEqual(portabilityProblems(core), []);
   assert.deepEqual(relativeLinks(core), []);
 });
 
 test("every source the core cites is on the sources page, and no other", () => {
   assert.ok(core.includes("`.ogham/coding/sources.md`"));
   assert.deepEqual(citationProblems(core, sourcesPage), []);
-  assert.deepEqual(matches(sourcesPage, MATH_QUEST_IDENTIFIERS), []);
-  assert.deepEqual(matches(sourcesPage, TRACKER_REFERENCES), []);
-  assert.deepEqual(matches(sourcesPage, HARNESS_WORDING), []);
-  assert.deepEqual(repoPaths(sourcesPage), []);
+  assert.deepEqual(portabilityProblems(sourcesPage), []);
 });
 
 test("a section is the text under its own heading only", () => {
@@ -413,10 +417,7 @@ test("a section is the text under its own heading only", () => {
 test("the TypeScript page cites only core rules and maps every linted one", () => {
   assert.deepEqual(unknownIds(typescriptPage, ids), []);
   assert.deepEqual(lintTableProblems(typescriptPage, rules), []);
-  assert.deepEqual(repoPaths(typescriptPage), []);
-  assert.deepEqual(matches(typescriptPage, MATH_QUEST_IDENTIFIERS), []);
-  assert.deepEqual(matches(typescriptPage, TRACKER_REFERENCES), []);
-  assert.deepEqual(matches(typescriptPage, HARNESS_WORDING), []);
+  assert.deepEqual(portabilityProblems(typescriptPage), []);
 });
 
 test("every Math Quest rule 11–16 maps to a core rule or to its local layer", () => {

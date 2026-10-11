@@ -134,6 +134,18 @@ export const matches = (text, patterns) =>
   patterns.filter((pattern) => pattern.test(text)).map(String);
 
 /**
+ * What ties a shipped page to this repo or to one harness: repo paths, Math
+ * Quest identifiers, tracker and plan IDs, and harness names.
+ * @param {string} text
+ */
+export const portabilityProblems = (text) => [
+  ...repoPaths(text),
+  ...matches(text, MATH_QUEST_IDENTIFIERS),
+  ...matches(text, TRACKER_REFERENCES),
+  ...matches(text, HARNESS_WORDING),
+];
+
+/**
  * The part of a document under one `## ` heading, up to the next one.
  * @param {string} text
  * @param {string} heading
