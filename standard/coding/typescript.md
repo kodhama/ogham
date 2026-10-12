@@ -20,7 +20,14 @@ The same goes for randomness (take a seed), `process.env` (take the parsed confi
 
 **An injected clock or store is still an effect.** Edge code may take them as interfaces so a test can pass fakes, but logic receives the value they produced, never the interface.
 
-**Lint reports the edge's own read too.** It cannot tell the edge from logic, so it reports the one place that is meant to read the clock. That read follows the rule. Silence lint on that line with a disable comment, as [Exceptions](#exceptions) shows, or exempt the edge's folder by name in `ogham.local.md`.
+**Lint reports the edge's own read too.** It cannot tell the edge from logic, so it reports the one place that is meant to read the clock. That read follows the rule, so its disable comment is not an exception. It says what is read and that this is the edge:
+
+```ts
+// eslint-disable-next-line ogham/no-restricted-properties -- og-no-hidden-inputs: reads the clock; this is the edge, and the value is passed in
+const now = Date.now();
+```
+
+Or exempt the edge's folder by name in `ogham.local.md`.
 
 ## Returning new values
 
@@ -189,14 +196,14 @@ Code elsewhere never writes an `Email` literal or a spread copy of one; it calls
 buffer[offset] = sample;
 ```
 
-Where only the reviewer checks the rule, it is a plain comment in the same shape:
+Where lint does not report the line, it is a plain comment in the same shape:
 
 ```ts
 // og-thin-effects: pages through the table and decides per page; the rows do not fit in memory
 ```
 
-- **The text after `--` is required**: the rule ID, the effect, and why the rule cannot hold here. A disable with no text is itself reported, and so is a disable that no longer silences anything.
-- **The function still carries its markers** (`og-mark-effects`). A marked mutator that lint does not report needs no comment at all.
+- **The text after `--` is required**: the rule ID, the effect, and why the rule cannot hold here. The edge's own read is not an exception: its text says that this is the edge ([Pure functions and hidden inputs](#pure-functions-and-hidden-inputs)). A disable with no text is itself reported, and so is a disable that no longer silences anything.
+- **The function still carries its markers** (`og-mark-effects`): an exception covers the rule it names, and no other. A marked mutator that lint does not report needs no comment at all.
 - **In-place mutation for performance is allowed** as a marked mutator. No benchmark is required.
 - **A loosening for a folder or the whole repo** is a named exemption with its reason in `ogham.local.md`, never a bare config change.
 
@@ -215,6 +222,7 @@ The preset registers ESLint's own rules under an `ogham/` prefix, so they never 
 **Lint is a tripwire for the common spellings, not a proof.** The reviewer checks what it cannot see:
 
 - a method call that mutates a parameter, such as `items.push(x)`;
+- a write that reaches a parameter by another name: an alias (`const c = cart; c.total = x`), a part destructured from it in the function body, or a loop variable over one of its collections;
 - a hidden input read through an alias (`const clock = Date; clock.now()`) or through `globalThis`;
 - a top-level `const` holding a collection that is written later;
 - every rule the table does not list.

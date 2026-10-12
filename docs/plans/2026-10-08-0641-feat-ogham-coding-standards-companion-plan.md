@@ -25,7 +25,7 @@ execution: code
 
 **Revised 2026-10-11 for U3 (`docs/decisions/core-standard-shape.md`):** the coding standard gains a sources page, `standard/coding/sources.md`, which the core names by its vendored path. KTD1, the output tree, U3's files and a U6 test scenario now list it.
 
-**Records outside this repo:** the rulings cited as D1–D21 are in the maintainer's hq records. D1–D13 are in `areas/coding-standards/decisions.md` and D14–D21 in `areas/ogham/decisions.md`. The work item is KOD-5.
+**Records outside this repo:** the rulings cited as D1–D27 are in the maintainer's hq records. D1–D13 are in `areas/coding-standards/decisions.md` and D14–D27 in `areas/ogham/decisions.md`. The work item is KOD-5.
 
 ---
 
@@ -36,7 +36,7 @@ execution: code
 - **Product authority:** Gonçalo. The Product Contract's R-IDs win on behaviour; a KTD wins on mechanism within them; a unit overrides neither.
 - **Stop conditions:**
   - after U1 (research), stop until Gonçalo approves this plan;
-  - stop and ask when evidence shows a settled decision (D1–D21) cannot work, or a requirement cannot be met as written. That includes U10's reviewer-pointer and Codex checks;
+  - stop and ask when evidence shows a settled decision (D1–D27) cannot work, or a requirement cannot be met as written. That includes U10's reviewer-pointer and Codex checks;
   - stop at every merge and at the v1 tag. Under D21 the worker merges a PR only when its four gates hold (review skill, green CI, GitHub reviewers on the final head, a fresh pre-merge review). Gonçalo approves the v1 tag.
 - **Execution profile:** one worker, units in dependency order. After U3, the content units (U4) and the tooling units (U5–U9) can run as two streams; whether to staff them as a team is majordomo's call.
 - **Who finishes:** the worker opens each PR as a draft and marks it ready when the branch is final; the worker merges under D21's gates, and Gonçalo approves the v1 tag.
@@ -148,7 +148,7 @@ No specific failures have been observed — nobody looked — so the companion i
 
 ### Dependencies / Assumptions
 
-- `install` adopts Trellis by calling Trellis's own CLI, `npx github:kodhama/trellis#v<version> install` (D19). TRL-107 builds that CLI; U8 waits for its tag.
+- `install` adopts Trellis by calling Trellis's own CLI, `npx github:kodhama/trellis#v<version> install` (D19). TRL-113 builds that CLI, to the requirements TRL-107 set; U8 waits for its tag.
 - Trellis's cloud path is Claude-only today; Trellis does not yet support Codex (trellis `README.md`, "Local Codex — carried, not supported"). Ogham's own vendored files work on any host; the Trellis half of R9 holds only where Trellis does.
 - The rubric only bites where grove or a repo-level review loop runs.
 - Gonçalo's thesis — functional style yields more testable, less bug-prone code that agents refactor more easily — is his stated belief. Large-scale evidence that it reduces bugs is contested (Ray et al. 2014; Berger et al. 2019 reproduction — cited from memory, unverified; U1 verifies); the testability argument is the stronger ground.
@@ -184,7 +184,7 @@ This plan covers the companion's shape and its first standard, coding practices.
 
 ### Sources / Research
 
-- Gonçalo's rulings for this plan: hq `areas/coding-standards/decisions.md` (D1–D13) and `areas/ogham/decisions.md` (D14–D21).
+- Gonçalo's rulings for this plan: hq `areas/coding-standards/decisions.md` (D1–D13) and `areas/ogham/decisions.md` (D14–D27).
 - Math Quest functional standard: rules 11–16 in math-quest `docs/code-organisation.md`, enforced by `eslint/pure-by-default.js` and the reviewer; rulings in hq `areas/fp-standard/decisions.md` (D1–D6); PR kodhama/math-quest#883 (MQ-384).
 - Math Quest review criteria for its review agent: math-quest `CODING_STANDARDS.md`.
 - Trellis adoption and configuration limits: trellis `docs/decisions/` — decision-0077 (silence never adopts; supersedes part of decision-0070), decision-0073 (delivery states are a closed set), 2026-09-15 rule-rows-only (projects can only switch rules off), decision-0068 (no personal-scope rules file).
@@ -251,7 +251,7 @@ This plan covers the companion's shape and its first standard, coding practices.
   - **On a Trellis error,** ogham's own adoption stays in place and `install` exits non-zero. It prints the exact `npx github:kodhama/trellis#v<version> install` command to retry. Re-running ogham's `install` cannot retry, because it reports "already adopted".
   - **`update` and `remove` never touch Trellis.** Trellis's own `update` and the cross-repo routine own that.
   - **Cloud:** Trellis's committed files are Trellis's concern. Ogham passes on whatever Trellis's `install` prints.
-  - **Not final:** Trellis's exit codes and verb flags are not fixed until its CLI is tagged (TRL-107).
+  - **Not final:** Trellis's exit codes and verb flags are not fixed until its CLI is tagged (TRL-113).
 
   (session-settled: user-approved, D19, via TRL-107. It reverses D16's rejection of Trellis's installer, because the new CLI is pinnable and non-interactive and owns its own state detection.)
 - KTD7. **The TypeScript preset re-registers built-in ESLint rules under an `ogham/` plugin, and checks disable reasons outside ESLint too** (D16).
@@ -302,6 +302,7 @@ This plan covers the companion's shape and its first standard, coding practices.
 flowchart LR
   subgraph owned[".ogham/ — ogham-owned, read-only (R12)"]
     core["coding/core.md"]
+    sources["coding/sources.md"]
     lang["coding/typescript.md"]
     rubric["coding/rubric.md"]
     preset["coding/eslint/ preset (.mjs, ogham/* rules)"]
@@ -318,6 +319,7 @@ flowchart LR
   claude -.-> core
   agents --> lang
   agents -- "inlines the text of" --> core
+  core -- "cites" --> sources
   agents --> local
   agents --> rubric
   cs --> rubric
@@ -399,7 +401,7 @@ An unrecognised lint-config shape changes one step. `apply` vendors everything e
 | ce-code-review's standards reviewer may not follow a pointer from `CODING_STANDARDS.md` to the rubric | U10 runs a real ce-code-review for AE2. If the reviewer does not follow the pointer, stop and bring the evidence to Gonçalo. D20 inlines only the core, so inlining the rubric is his call |
 | `AGENTS.md` grows past Codex's 32 KiB read limit, so Codex misses part of the inline core (R3) | The core keeps to 900 words (U3), and Trellis's block is about 7 KB (trl-107-worker). `install`, `update` and `check` warn past 32 KiB (KTD2). U10 tests a Codex session |
 | Trellis's cloud reach depends on Trellis's CLI | The Product Contract already bounds this ("the Trellis half of R9 holds only where Trellis does"). Ogham passes on what Trellis's `install` prints, and U10's cloud check covers ogham's half |
-| Trellis's CLI does not exist yet, and its exit codes and flags are not final (TRL-107) | U8 runs after U9, as the last unit before U10. If the CLI is not tagged when U9 merges, stop and ask Gonçalo whether to wait or ship v0.1.0 without the Trellis half. Shipping without it would defer part of R7 and AE1, which needs his ruling |
+| Trellis's CLI does not exist yet, and its exit codes and flags are not final (TRL-113) | U8 runs after U9, as the last unit before U10. If the CLI is not tagged when U9 merges, stop and ask Gonçalo whether to wait or ship v0.1.0 without the Trellis half. Shipping without it would defer part of R7 and AE1, which needs his ruling |
 | Math Quest has a known review gap: its `CODING_STANDARDS.md` likely hides rules 11–16 from ce-code-review (inferred from the reviewer's instructions, not observed) | The Math Quest adoption ticket (U10) carries it, and the reviewer block in `CODING_STANDARDS.md` closes it on adoption |
 
 ---
@@ -415,7 +417,7 @@ An unrecognised lint-config shape changes one step. `apply` vendors everything e
 | U5 | TypeScript lint preset | `standard/coding/eslint/` | U3 |
 | U6 | Bootstrap: vendoring, lock, update, check | `bin/ogham.mjs`, `src/` | U2, U3 |
 | U7 | Bootstrap: hook-in blocks and local layer | `src/`, `templates/` | U3, U6 |
-| U8 | Bootstrap: Trellis half | `src/` | U6, U9 (sequencing); Trellis CLI tag (TRL-107) |
+| U8 | Bootstrap: Trellis half | `src/` | U6, U9 (sequencing); Trellis CLI tag (TRL-113) |
 | U9 | Bootstrap: lint wiring, never-weaken gate, suppressions | `src/` | U5, U6 |
 | U10 | Acceptance run, release and follow-up tickets | `test/acceptance/`, `README.md` | U4, U7, U8, U9 |
 
@@ -656,7 +658,7 @@ An unrecognised lint-config shape changes one step. `apply` vendors everything e
 
 **Requirements:** R7, R9 (Trellis half); KTD6.
 
-**Dependencies:** U6, plus a tagged Trellis CLI from TRL-107. Sequenced after U9, as the last unit before U10 (Risks).
+**Dependencies:** U6, plus a tagged Trellis CLI from TRL-113. Sequenced after U9, as the last unit before U10 (Risks).
 
 **Files:**
 - `src/trellis.mjs`
@@ -740,7 +742,7 @@ An unrecognised lint-config shape changes one step. `apply` vendors everything e
 1. Write automated acceptance tests on fixture repos (AE1 local half, AE3, AE4). AE1's "new, empty TypeScript repo" fixture is a `package.json` and a `tsconfig.json` with no code and no installed dependencies.
 2. Run the manual checks and record their evidence in the PR:
    - **AE1, cloud half:** open a cloud session on an adopted fixture repo; it reads ogham's core and lint runs. Trellis's cloud reach follows Trellis's CLI and is noted separately (Risks).
-   - **AE2:** one ce-code-review run on a fixture diff, with and without an exemption.
+   - **AE2:** one ce-code-review run on a fixture diff, with and without an exemption. Pick a shape only one core rule claims, and pass the run on any true `og-` ID: the core's rules overlap, so for some shapes a reviewer can rightly cite either of two (`docs/decisions/review-rubric-shape.md`). Record every shape the run cites under two IDs, and bring the list to Gonçalo before the tag as a question about the core. The fixture is a marked helper whose write lint reports, such as an assignment to a property of its parameter. With a named, reasoned exemption for its folder in `ogham.local.md`, or a complete exception comment on the line, the reviewer accepts it; with neither, or with an entry that lacks its reason, the reviewer flags it. The helper carries its markers, because an exception or exemption covers its own rule and an unmarked helper still draws `og-mark-effects`. A marked mutator that lint does not report passes with no written reason (D27), so it cannot show the difference.
    - **The `@` import:** it resolves in Claude Code.
    - **Codex:** a Codex session sees the inline core. Asked to write code, it follows the core. Also record whether Codex's 32 KiB cap applies per `AGENTS.md` file or across the chain (KTD2). If it does not follow the core, stop and bring the evidence to Gonçalo.
    - **The agent-trial for the Success Criteria:** a fresh Claude session in an adopted fixture writes a small feature with no style prompt, then lint and one rubric review run on its diff.
