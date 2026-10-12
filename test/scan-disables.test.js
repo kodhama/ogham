@@ -135,6 +135,22 @@ test("a comment after such text is still found", () => {
   }
 });
 
+test("text that stops mid-token is read to its end", () => {
+  for (const code of [
+    "/* eslint-disable",
+    "const a = `${b",
+    "const a = 'open",
+    "const a = /open",
+    "const a = `open",
+    "//",
+    "#!",
+    "}}}",
+  ]) {
+    assert.doesNotThrow(() => comments(code), code);
+  }
+  assert.deepEqual(labels("/* eslint-disable"), ["eslint-disable"]);
+});
+
 test("the scanner reads comments as ESLint's parser does", () => {
   const code = [
     "#!/usr/bin/env node",
