@@ -108,6 +108,38 @@ decides nothing), which an earlier draft stated beside the check. They gave an
 edge function that also decides a second rule ID, and an IO function stamping
 its own log line a finding the core does not back.
 
+**2026-10-11 decision: the rubric does not give every code shape one rule
+ID.** The core's rules overlap, so one line can break two of them. A callback
+that writes to its enclosing function's parameter breaks
+`og-functions-as-values` and `og-return-new-values`. A clock read in logic
+under a comment in the exception's shape, whose reason wrongly says this is
+the edge, breaks `og-no-hidden-inputs` and `og-reasoned-exceptions`. A write
+through a store the function was handed reads as an effect, graded on the
+function, or as a call that changes a handed value in place
+(`og-return-new-values`). The
+line-first rule above settles the commonest overlaps, and the rubric leaves
+the rest: a finding cited under either true ID is a correct finding. What the
+page must not do is give the same code a finding by one sentence and none by
+another, or contradict the core. One shape is left where that turns on a
+judgment the core leaves open: a write through a handed store, in a function
+marked as a mutator outside the edge, is clean if the write is a mutation and
+owes the place marker if it is an effect, and the core defines both. Turned
+down: a sentence for each overlap.
+Four review rounds each built a shape that the newest such sentence answered
+two ways, and nothing suggests a fifth would not. The overlap is a property of
+the core's eleven rules; narrowing it means changing the core, which is the
+maintainer's call. The acceptance run (plan U10) accepts either true ID.
+
+**2026-10-11 decision: the rubric sets no severity.** How findings are ranked,
+and whether one blocks a merge, is the repo's choice: the companion supplies
+criteria and the repo's loop reviews (plan R16).
+
+**2026-10-11 decision: two style checks under `og-functions-as-values` are
+marked as judgment.** "Pass a function where that removes duplication" and
+"name a long function" have no line a reviewer can point to, so the rubric
+says to raise them only when the gain is plain. The third clause, a passed
+function that writes to what it captured, is a plain check.
+
 **2026-10-12 decision: a complete exception covers the rule it names, and no
 more.** A complete exception to `og-return-new-values` leaves the function its
 markers to carry, and a complete exception to `og-mark-effects` covers a
@@ -125,35 +157,8 @@ has pure code make "every decision" first. An earlier wording, "works out what
 to write", also caught a marked mutator's own mechanics, such as the
 comparison in a sort. The wording after that, "branches on business rules",
 passed an effect function that computes a discount and saves it; two reviews
-of that head said so, one of them by another model. The check now says that a
-mutator's own mechanics are not deciding, so the TypeScript page's in-place
-sort stays clean. Whether a calculation is a business rule is the reviewer's
-judgment.
-
-**2026-10-11 decision: the rubric does not give every code shape one rule
-ID.** The core's rules overlap, so one line can break two of them. A callback
-that writes to its enclosing function's parameter breaks
-`og-functions-as-values` and `og-return-new-values`. A clock read in logic
-under a comment in the exception's shape, whose reason wrongly says this is
-the edge, breaks `og-no-hidden-inputs` and `og-reasoned-exceptions`. A write
-through a store the function was handed reads as an effect, graded on the
-function, or as a call that changes a handed value in place
-(`og-return-new-values`). The
-line-first rule above settles the commonest overlaps, and the rubric leaves
-the rest: a finding cited under either true ID is a correct finding. What the
-page must not do is give the same code a finding by one sentence and none by
-another, or contradict the core. Turned down: a sentence for each overlap.
-Four review rounds each built a shape that the newest such sentence answered
-two ways, and nothing suggests a fifth would not. The overlap is a property of
-the core's eleven rules; narrowing it means changing the core, which is the
-maintainer's call. The acceptance run (plan U10) accepts either true ID.
-
-**2026-10-11 decision: the rubric sets no severity.** How findings are ranked,
-and whether one blocks a merge, is the repo's choice: the companion supplies
-criteria and the repo's loop reviews (plan R16).
-
-**2026-10-11 decision: two style checks under `og-functions-as-values` are
-marked as judgment.** "Pass a function where that removes duplication" and
-"name a long function" have no line a reviewer can point to, so the rubric
-says to raise them only when the gain is plain. The third clause, a passed
-function that writes to what it captured, is a plain check.
+of that head said so, one of them by another model. A clause that exempted "a
+mutator's own mechanics, such as the comparison in a sort" was tried and
+removed: it also exempted a sort whose comparison applies a business rule,
+which the check's first sentence flags. Whether a calculation is a business
+rule is the reviewer's judgment.
