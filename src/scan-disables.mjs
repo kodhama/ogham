@@ -13,16 +13,22 @@
 // Where it guesses. Whether a `/` opens a regular expression or divides is
 // settled by what comes before it: after a value it divides. After `)` it is
 // read as division, and after `}` as a regular expression, unless `>` follows
-// as in a JSX tag that closes itself; either can be wrong. JSX text is read
-// as code, so a quote, a backtick or a comment marker in it is taken for the
-// real thing.
+// as in a JSX tag that closes itself; either can be wrong. So can a word such
+// as `of` used as a name, which is read as the keyword, and a number that
+// ends in a dot. JSX is read as code: a quote, a backtick or a comment marker
+// in JSX text is taken for the real thing, and an attribute's string that
+// runs over a line break is read as ending there. A line ends at a line feed
+// only, and an HTML-style `<!--` comment is not read as a comment.
 //
-// What a wrong guess costs. A string or a regular expression ends at its
-// line's end, so most wrong guesses hide or invent a comment on one line. One
-// that swallows a backtick, or the brace that closes a template substitution,
-// or that opens a block comment, can throw off the reading of the rest of the
-// file. The lint rule still reports a comment this scan misses, unless that
-// comment is itself a blanket disable: such a file needs the reviewer.
+// What a wrong guess costs. A string or a regular expression left open ends
+// at its line's end, so most wrong guesses hide or invent a comment on one
+// line. One that swallows a backtick, or the brace that closes a template
+// substitution, or that opens a block comment, can throw off the reading of
+// the rest of the file. The lint rule still reports a comment this scan
+// misses, unless that rule is off where the comment sits: under a disable
+// that names no rule or names that rule, or a setting comment that turns it
+// off. The missed comment can be that disable itself, or come after one that
+// gives a reason. Such a file needs the reviewer.
 
 import { lintOff } from "../standard/coding/eslint/disable-needs-reason.mjs";
 
@@ -50,6 +56,7 @@ const BEFORE_AN_EXPRESSION = new Set([
   "void",
   "throw",
   "case",
+  "default",
   "do",
   "else",
   "yield",
@@ -68,8 +75,18 @@ const lineEnd = (text, from) => {
 };
 
 /**
+ * How many characters the backslash at `index` covers in a string: itself
+ * and the character after it, or the two of a Windows line break.
+ * @param {string} text
+ * @param {number} index
+ */
+const escapeLength = (text, index) =>
+  text.startsWith("\r\n", index + 1) ? 3 : 2;
+
+/**
  * The index just past the string that opens at `start`. A string ends at its
- * quote, or at the line's end when it has none.
+ * quote, or at the line's end when it has none. A backslash carries it over
+ * a line break.
  * @param {string} text
  * @param {number} start
  */
@@ -77,7 +94,7 @@ const stringEnd = (text, start) => {
   const quote = text[start];
   let index = start + 1;
   while (index < text.length && text[index] !== quote && text[index] !== "\n") {
-    index += text[index] === "\\" ? 2 : 1;
+    index += text[index] === "\\" ? escapeLength(text, index) : 1;
   }
   return Math.min(index + 1, text.length);
 };
@@ -143,7 +160,8 @@ export const comments = (text) => {
   let depth = 0;
   // Whether the code just read is a value, so that a `/` here divides.
   let afterValue = false;
-  // The last character of code read, white space and comments aside.
+  // The last piece of code read, white space and comments aside: a word, a
+  // backtick for a template, or one character.
   let last = "";
   const wordAt = /[\w$\u0080-\u{10ffff}]+/uy;
   let index = text.startsWith("#!") ? lineEnd(text, 0) : 0;

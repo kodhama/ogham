@@ -59,6 +59,19 @@ export const lintOff = (comment) => {
     : undefined;
 };
 
+/**
+ * The comments among `all` that turn lint off and give no reason: where each
+ * sits, and which directive it is.
+ * @param {ReturnType<import("eslint").SourceCode["getAllComments"]>} all
+ */
+const reasonless = (all) =>
+  all.flatMap((comment) => {
+    const off = lintOff(comment);
+    return off && off.reason === "" && comment.loc
+      ? [{ loc: comment.loc, label: off.label }]
+      : [];
+  });
+
 /** @type {import("eslint").Rule.RuleModule} */
 export default {
   meta: {
@@ -76,15 +89,10 @@ export default {
   /** Effect: reports each reasonless comment to ESLint. */
   create: (context) => ({
     Program: () => {
-      for (const comment of context.sourceCode.getAllComments()) {
-        const off = lintOff(comment);
-        if (off && off.reason === "" && comment.loc) {
-          context.report({
-            loc: comment.loc,
-            messageId: "missing",
-            data: { label: off.label },
-          });
-        }
+      for (const { loc, label } of reasonless(
+        context.sourceCode.getAllComments(),
+      )) {
+        context.report({ loc, messageId: "missing", data: { label } });
       }
     },
   }),

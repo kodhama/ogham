@@ -6,6 +6,7 @@
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { ESLint, Linter } from "eslint";
 import { builtinRules } from "eslint/use-at-your-own-risk";
@@ -67,6 +68,15 @@ test("a reduce accumulator is a parameter to lint, whatever it is called", () =>
     ),
     ["ogham/no-param-reassign"],
   );
+  assert.deepEqual(ruleIds("export function f(acc) { acc.total = 1; }"), [
+    "ogham/no-param-reassign",
+  ]);
+  assert.deepEqual(
+    ruleIds(
+      "export const byKey = (xs) => xs.reduce((acc, x) => ({ ...acc, [x.k]: x }), {});",
+    ),
+    [],
+  );
 });
 
 test("a hidden input spelled as a property is reported, citing og-no-hidden-inputs", () => {
@@ -78,7 +88,10 @@ test("a hidden input spelled as a property is reported, citing og-no-hidden-inpu
     "process.env",
     'process.env["KEY"]',
     "window.localStorage",
+    "window.sessionStorage",
     "globalThis.localStorage",
+    "globalThis.sessionStorage",
+    "self.localStorage",
     "self.sessionStorage",
   ]) {
     const messages = lint(`export const x = ${read};`);
@@ -240,6 +253,18 @@ test("a disable comment with no reason is reported, citing og-reasoned-exception
   assert.match(messages[0]?.message ?? "", /og-reasoned-exceptions/);
 });
 
+test("every reasonless comment in a file is reported, not only the first", () => {
+  assert.deepEqual(
+    lint(
+      "export function f(a, b) {\n  // eslint-disable-next-line ogham/no-param-reassign\n  a.n = 1;\n  // eslint-disable-next-line ogham/no-param-reassign\n  b.n = 1;\n}",
+    ).map((message) => [message.ruleId, message.line]),
+    [
+      ["ogham/disable-needs-reason", 2],
+      ["ogham/disable-needs-reason", 4],
+    ],
+  );
+});
+
 test("a disable comment with its reason is accepted", () => {
   assert.deepEqual(
     ruleIds(
@@ -359,6 +384,22 @@ test("JS and TS source files are checked; test files and declaration files are n
       filePath,
     );
   }
+  // A name or a folder that only holds the letters of "test" or "spec" is
+  // still source.
+  for (const filePath of [
+    "src/contest.js",
+    "src/inspect.js",
+    "src/test-utils.js",
+    "src/latest/cart.js",
+    "src/contests/cart.js",
+    "src/testing/cart.js",
+  ]) {
+    assert.deepEqual(
+      await reported(plain, filePath),
+      ["ogham/no-param-reassign"],
+      filePath,
+    );
+  }
   for (const filePath of [
     "test/cart.js",
     "tests/unit/cart.js",
@@ -429,7 +470,10 @@ test("every og- ID a lint message cites is a core rule", () => {
 });
 
 test("ogham's own lint config applies the preset to its source and not to its tests", async () => {
-  const engine = new ESLint();
+  // The repo's root, so the test finds the config from any directory.
+  const engine = new ESLint({
+    cwd: fileURLToPath(new URL("..", import.meta.url)),
+  });
 
   /** @param {string} file */
   const rulesFor = async (file) =>

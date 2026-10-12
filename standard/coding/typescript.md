@@ -219,7 +219,7 @@ The preset registers ESLint's own rules under an `ogham/` prefix, so they never 
 | `ogham/no-restricted-properties` | `og-no-hidden-inputs` | The clock, randomness, the environment and storage spelled as a property of a global: `Date.now()`, `performance.now()`, `Math.random()`, `crypto.getRandomValues()`, `process.env`, and `localStorage` or `sessionStorage` on `window`, `globalThis` or `self` |
 | `ogham/no-restricted-globals` | `og-no-hidden-inputs` | Browser storage used as a bare global: `localStorage`, `sessionStorage` |
 | `ogham/no-restricted-syntax` | `og-no-hidden-inputs`, `og-no-module-state` | `new Date()` with no argument, `Date()` and `import.meta.env`; a top-level `let` or `var`, exported or not |
-| `ogham/disable-needs-reason` | `og-reasoned-exceptions` | A comment that turns lint off with no `-- reason`: a disable for a line, for a range or for the rest of the file, and a rule's setting changed in a comment. A disable that names no rule silences this rule too |
+| `ogham/disable-needs-reason` | `og-reasoned-exceptions` | A comment that turns lint off with no `-- reason`: a disable for a line, for a range or for the rest of the file, and a rule's setting changed in a comment. A disable that names no rule, or names this one, silences this rule too, and so does a setting comment that turns it off |
 
 The preset covers source files with a JavaScript or TypeScript extension. It leaves out test files (`*.test.*`, `*.spec.*`, and folders named `test`, `tests` or `__tests__`) and type declaration files. It also makes a disable comment that no longer silences anything an error.
 

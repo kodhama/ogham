@@ -62,12 +62,19 @@ to resolve in the vendored layout.
 `check` runs with Node alone (plan KTD4, KTD5), so
 `src/scan-disables.mjs` walks the text and steps over strings, template
 literals and regular expressions. Its header names where it guesses: a `/`
-after `)` is read as division and after `}` as a regular expression, and JSX
-text is read as code. Most wrong guesses hide or invent a comment on one
-line; one that swallows a backtick or opens a block comment can throw off the
-rest of the file. The inline rule still reports what the scanner misses,
-unless the missed comment is itself a blanket disable. So one case stays with
-the reviewer: a reasonless blanket disable in a file the scanner misreads.
+after `)` is read as division and after `}` as a regular expression; a word
+such as `of` used as a name is read as the keyword, and a number that ends
+in a dot is not read as a value; JSX is read as code, text and wrapped
+attribute strings alike; a line ends at a line feed only; and `<!--` is not
+read as a comment. Most wrong guesses hide or invent a
+comment on one line; one that swallows a backtick or opens a block comment
+can throw off the rest of the file. The inline rule still reports what the
+scanner misses, unless that rule is off where the missed comment sits: under
+a disable that names no rule or names that rule, or a setting comment that
+turns it off. The missed comment can be that disable itself, or come after
+one that gives a reason. So one case stays with the reviewer: a reasonless
+comment that turns lint off, in a file the scanner misreads, at a place
+where the reason rule is off.
 Turned down: borrowing the adopting repo's parser, which would make `check`
 fail wherever dependencies are not installed. That choice is the one to
 revisit if the limit bites.
@@ -84,6 +91,25 @@ comment, on 2,149 files: 1,007 JavaScript files under `node_modules`
 `.ts` and `.tsx` files, of which only 21 are `.tsx`. So JSX is the least
 tested ground. On Math Quest's source it finds the one reasonless disable the
 rule mapping names.
+
+**2026-10-12 note: what the second review found.** Two more wrong readings,
+both fixed and tested: a `/` after `default`, as in `export default /…/`, was
+read as division; and a string carried over a Windows line break by a
+backslash ended a line early, so the result changed with a checkout's line
+endings. Two sentences were false or short. The decision above said the
+inline rule reports whatever the scanner misses unless the missed comment is
+a blanket disable; a disable that names the reason rule, and a setting
+comment that turns it off, escape both checks the same way. And the header's
+list of guesses left out a JSX attribute string that wraps, a keyword used as
+a name, a number that ends in a dot, line ends other than a line feed, and
+`<!--`. Those five are named now and not fixed: each needs a parser, or is not written by accident. The
+tests had let a broken scanner through: of the words that expect an
+expression only `typeof` had a `/` after it in any test. Each word has a case
+now, and 30 one-line changes to the scanner and the rule each fail a test.
+After this pass the scanner's comments equal the parsers' on 2,266 files: 997
+JavaScript files and 725 declaration files under `node_modules`, 534 of Math
+Quest's `.ts` and `.tsx` files (10 of them `.tsx`, on a different checkout
+from the first count), and ogham's own 10.
 
 **2026-10-12 decision: the tests carry their code inline.** The plan lists
 `test/fixtures/lint/`; no fixture files were needed. The rules run on strings

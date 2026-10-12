@@ -139,13 +139,15 @@ test("a comment after such text is still found", () => {
   }
 });
 
-test("a slash after a value divides: TypeScript's postfix !, a postfix ++ and a keyword used as a property name", () => {
+test("a slash after a value divides: TypeScript's postfix !, a postfix ++, a keyword used as a property name, and a closing bracket", () => {
   for (const code of [
     "box.mid = width! / 2; // eslint-disable-line",
     "const half = i++ / 2; // eslint-disable-line",
     "const half = i-- / 2; // eslint-disable-line",
     "const half = o.in / 2; // eslint-disable-line",
     "const half = o?.return / 2; // eslint-disable-line",
+    "const half = (a + b) / 2; // eslint-disable-line",
+    "const half = xs[0] / 2; // eslint-disable-line",
   ]) {
     assert.deepEqual(labels(code), ["eslint-disable-line"], code);
   }
@@ -191,6 +193,11 @@ const TYPED_SAMPLES = [
     "const ratio = (a + b) / (c[0] / 2); // four",
     "const path = url.replace(/\\/+$/, '').split('/'); // five",
   ],
+  [
+    "export const hasTick = (s: string): boolean => /`/.test(s); // one",
+    "const TICK = `\\``; /* two */",
+    "export const isUrl = (s: string) => /^https?:\\/\\//.test(s); // three",
+  ],
 ];
 
 /**
@@ -214,6 +221,28 @@ const parsedComments = (code) => {
     start: range?.[0],
   }));
 };
+
+test("a slash after each word that expects an expression opens a regular expression", () => {
+  for (const code of [
+    "function f(b) { return /'/.test(b); } const c = '/* eslint-disable */';",
+    "function f() { throw /'/; } const c = '/* eslint-disable */';",
+    "switch (true) { case /'/.test(b): break; } const c = '/* eslint-disable */';",
+    "if (a) b(); else /'/.test(b); const c = '/* eslint-disable */';",
+    "do /'/.test(b); while (a); const c = '/* eslint-disable */';",
+    "function* g() { yield /'/; } const c = '/* eslint-disable */';",
+    "async function h() { await /'/; } const c = '/* eslint-disable */';",
+    "const a = new /'/.constructor('x'); const c = '/* eslint-disable */';",
+    "delete /'/.lastIndex; const c = '/* eslint-disable */';",
+    "void /'/; const c = '/* eslint-disable */';",
+    "const a = b instanceof /'/.constructor; const c = '/* eslint-disable */';",
+    "const a = 'x' in /'/; const c = '/* eslint-disable */';",
+    "for (const m of /'/[Symbol.matchAll]('x')) m; const c = '/* eslint-disable */';",
+    "export default /'/; export const c = '/* eslint-disable */';",
+  ]) {
+    assert.deepEqual(parsedComments(code), [], code);
+    assert.deepEqual(labels(code), [], code);
+  }
+});
 
 test("the scanner reads comments as the TypeScript parser does, in typed code and JSX", () => {
   for (const lines of TYPED_SAMPLES) {
@@ -242,6 +271,23 @@ test("text that stops mid-token is read to its end", () => {
     assert.doesNotThrow(() => comments(code), code);
   }
   assert.deepEqual(labels("/* eslint-disable"), ["eslint-disable"]);
+});
+
+test("a regular expression with no closing slash ends at its line's end", () => {
+  assert.deepEqual(labels("const a = /open\n/* eslint-disable */"), [
+    "eslint-disable",
+  ]);
+});
+
+test("a string carried over a line break by a backslash is read to its quote, whatever the line ending", () => {
+  for (const code of [
+    "const s = 'a \\\n b'; /* eslint-disable */\n",
+    "const s = 'a \\\r\n b'; /* eslint-disable */\r\n",
+    "const s = 'a \\\n /* note */ b'; // eslint-disable-line\n",
+    "const s = 'a \\\r\n /* note */ b'; // eslint-disable-line\r\n",
+  ]) {
+    assert.equal(labels(code).length, 1, JSON.stringify(code));
+  }
 });
 
 test("the scanner reads comments as ESLint's parser does", () => {
@@ -313,6 +359,7 @@ test("what the scanner calls a lint-off comment is what ESLint honours", () => {
     ['// eslint no-debugger: "off"\ndebugger;', false],
     ["/* eslint */\ndebugger;", false],
     ["debugger; /* eslint-disable-line\n no-debugger */", false],
+    ["/* eslint-disable-next-line\n no-debugger */\ndebugger;", true],
     ["// eslint-disable-next-line no-debugger -- stops here\ndebugger;", true],
   ])) {
     const silenced = linter.verify(code, config, "src/example.js").length === 0;
@@ -320,5 +367,23 @@ test("what the scanner calls a lint-off comment is what ESLint honours", () => {
 
     assert.equal(silenced, honoured, code);
     assert.equal(comment && lintOff(comment) !== undefined, honoured, code);
+  }
+});
+
+test("a reason is the text after the first dashes set apart by white space, and white space alone is not one", () => {
+  /** @type {import("eslint").Linter.Config[]} */
+  const config = [{ rules: { "no-debugger": "error" } }];
+
+  for (const [code, reason] of /** @type {const} */ ([
+    ["// eslint-disable-next-line no-debugger -- stops here\ndebugger;", "stops here"],
+    ["// eslint-disable-next-line no-debugger --- stops here\ndebugger;", "stops here"],
+    ["/* eslint-disable no-debugger --   stops here   */\ndebugger;", "stops here"],
+    ["/* eslint-disable no-debugger --\n */\ndebugger;", ""],
+    ["/* eslint-disable-next-line no-debugger --  */\ndebugger;", ""],
+  ])) {
+    const [comment] = comments(code);
+
+    assert.deepEqual(linter.verify(code, config, "src/example.js"), [], code);
+    assert.equal(comment && lintOff(comment)?.reason, reason, code);
   }
 });
