@@ -285,6 +285,8 @@ test("a string carried over a line break by a backslash is read to its quote, wh
     "const s = 'a \\\r\n b'; /* eslint-disable */\r\n",
     "const s = 'a \\\n /* note */ b'; // eslint-disable-line\n",
     "const s = 'a \\\r\n /* note */ b'; // eslint-disable-line\r\n",
+    "const s = 'a \\\n'; /* eslint-disable */\n",
+    "const s = 'a \\\r\n'; /* eslint-disable */\r\n",
   ]) {
     assert.equal(labels(code).length, 1, JSON.stringify(code));
   }
@@ -377,6 +379,7 @@ test("a reason is the text after the first dashes set apart by white space, and 
   for (const [code, reason] of /** @type {const} */ ([
     ["// eslint-disable-next-line no-debugger -- stops here\ndebugger;", "stops here"],
     ["// eslint-disable-next-line no-debugger --- stops here\ndebugger;", "stops here"],
+    ["// eslint-disable-next-line no-debugger -- stops -- here\ndebugger;", "stops -- here"],
     ["/* eslint-disable no-debugger --   stops here   */\ndebugger;", "stops here"],
     ["/* eslint-disable no-debugger --\n */\ndebugger;", ""],
     ["/* eslint-disable-next-line no-debugger --  */\ndebugger;", ""],

@@ -13,22 +13,27 @@
 // Where it guesses. Whether a `/` opens a regular expression or divides is
 // settled by what comes before it: after a value it divides. After `)` it is
 // read as division, and after `}` as a regular expression, unless `>` follows
-// as in a JSX tag that closes itself; either can be wrong. So can a word such
-// as `of` used as a name, which is read as the keyword, and a number that
-// ends in a dot. JSX is read as code: a quote, a backtick or a comment marker
-// in JSX text is taken for the real thing, and an attribute's string that
-// runs over a line break is read as ending there. A line ends at a line feed
-// only, and an HTML-style `<!--` comment is not read as a comment.
+// as in a JSX tag that closes itself; either can be wrong. After `>` it is
+// read as a regular expression, as after any operator, which is wrong where
+// the `>` closes type arguments that end a value: `x as Box<number> / 2`. So
+// can a word such as `of` used as a name, which is read as the keyword, and a
+// number that ends in a dot. JSX is read as code: a quote, a backtick or a
+// comment marker in JSX text is taken for the real thing, and an attribute's
+// string that runs over a line break is read as ending there. A line ends at
+// a line feed only, and an HTML-style `<!--` comment is not read as a comment.
 //
 // What a wrong guess costs. A string or a regular expression left open ends
 // at its line's end, so most wrong guesses hide or invent a comment on one
 // line. One that swallows a backtick, or the brace that closes a template
 // substitution, or that opens a block comment, can throw off the reading of
-// the rest of the file. The lint rule still reports a comment this scan
-// misses, unless that rule is off where the comment sits: under a disable
-// that names no rule or names that rule, or a setting comment that turns it
-// off. The missed comment can be that disable itself, or come after one that
-// gives a reason. Such a file needs the reviewer.
+// the rest of the file. In a file ESLint can parse, the lint rule still
+// reports a comment this scan misses, unless that rule is off where the
+// comment sits: under a disable that names no rule or names that rule, or a
+// setting comment that turns it off. The missed comment can be that disable
+// itself, or come after one that gives a reason. Such a file needs the
+// reviewer. A file ESLint cannot parse, such as a `.ts` file where no
+// TypeScript parser is set, gets a parsing error from ESLint and no rule's
+// report.
 
 import { lintOff } from "../standard/coding/eslint/disable-needs-reason.mjs";
 

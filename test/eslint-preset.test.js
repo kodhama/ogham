@@ -64,7 +64,7 @@ test("a write to a parameter is reported as ogham/no-param-reassign", () => {
 test("a reduce accumulator is a parameter to lint, whatever it is called", () => {
   assert.deepEqual(
     ruleIds(
-      "export const total = (xs) => xs.reduce((acc, x) => { acc.sum += x; return acc; }, { sum: 0 });",
+      "export const total = (xs) => xs.reduce((sums, x) => { sums.sum += x; return sums; }, { sum: 0 });",
     ),
     ["ogham/no-param-reassign"],
   );

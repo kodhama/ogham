@@ -62,14 +62,16 @@ to resolve in the vendored layout.
 `check` runs with Node alone (plan KTD4, KTD5), so
 `src/scan-disables.mjs` walks the text and steps over strings, template
 literals and regular expressions. Its header names where it guesses: a `/`
-after `)` is read as division and after `}` as a regular expression; a word
+after `)` is read as division, and after `}` or `>` as a regular expression,
+though a `>` can close type arguments that end a value; a word
 such as `of` used as a name is read as the keyword, and a number that ends
 in a dot is not read as a value; JSX is read as code, text and wrapped
 attribute strings alike; a line ends at a line feed only; and `<!--` is not
 read as a comment. Most wrong guesses hide or invent a
 comment on one line; one that swallows a backtick or opens a block comment
-can throw off the rest of the file. The inline rule still reports what the
-scanner misses, unless that rule is off where the missed comment sits: under
+can throw off the rest of the file. In a file ESLint can parse, the inline
+rule still reports what the scanner misses, unless that rule is off where
+the missed comment sits: under
 a disable that names no rule or names that rule, or a setting comment that
 turns it off. The missed comment can be that disable itself, or come after
 one that gives a reason. So one case stays with the reviewer: a reasonless
@@ -110,6 +112,19 @@ After this pass the scanner's comments equal the parsers' on 2,266 files: 997
 JavaScript files and 725 declaration files under `node_modules`, 534 of Math
 Quest's `.ts` and `.tsx` files (10 of them `.tsx`, on a different checkout
 from the first count), and ogham's own 10.
+
+**2026-10-12 note: a check by a second model.** Codex read the second fix
+pass and found two sentences short, here and in the scanner's header. A `/`
+after a `>` is read as a regular expression, which is right after a
+comparison and wrong after type arguments that end a value, as in
+`x as Box<number> / 2`; with that on a line, the scanner can miss a comment
+later on the same line. Telling the two apart needs a parser, so the guess
+stays and is named. And the inline rule backs the scanner up only in a file
+ESLint can parse: a `.ts` file where no TypeScript parser is set gets a
+parsing error and no rule's report. Both sentences say so now. Three tests
+were tightened, since each let a plainly wrong one-line change pass: a string
+carried over a line break whose next line starts with the quote, a reason
+that holds dashes of its own, and a reduce accumulator under another name.
 
 **2026-10-12 decision: the tests carry their code inline.** The plan lists
 `test/fixtures/lint/`; no fixture files were needed. The rules run on strings
