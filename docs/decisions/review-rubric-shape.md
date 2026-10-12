@@ -116,15 +116,12 @@ under a comment in the exception's shape, whose reason wrongly says this is
 the edge, breaks `og-no-hidden-inputs` and `og-reasoned-exceptions`. A write
 through a store the function was handed reads as an effect, graded on the
 function, or as a call that changes a handed value in place
-(`og-return-new-values`). The
+(`og-return-new-values`). The core counts "writing storage" as an effect, so
+that function owes the place marker whichever way the write is read. The
 line-first rule above settles the commonest overlaps, and the rubric leaves
 the rest: a finding cited under either true ID is a correct finding. What the
 page must not do is give the same code a finding by one sentence and none by
-another, or contradict the core. One shape is left where that turns on a
-judgment the core leaves open: a write through a handed store, in a function
-marked as a mutator outside the edge, is clean if the write is a mutation and
-owes the place marker if it is an effect, and the core defines both. Turned
-down: a sentence for each overlap.
+another, or contradict the core. Turned down: a sentence for each overlap.
 Four review rounds each built a shape that the newest such sentence answered
 two ways, and nothing suggests a fifth would not. The overlap is a property of
 the core's eleven rules; narrowing it means changing the core, which is the
