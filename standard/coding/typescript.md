@@ -203,7 +203,7 @@ Where lint does not report the line, it is a plain comment in the same shape:
 ```
 
 - **The text after `--` is required**: the rule ID, the effect, and why the rule cannot hold here. The edge's own read is not an exception: its text says that this is the edge ([Pure functions and hidden inputs](#pure-functions-and-hidden-inputs)). A disable with no text is itself reported, and so is a disable that no longer silences anything.
-- **The function still carries its markers** (`og-mark-effects`). A marked mutator that lint does not report needs no comment at all.
+- **The function still carries its markers** (`og-mark-effects`): an exception covers the rule it names, and no other. A marked mutator that lint does not report needs no comment at all.
 - **In-place mutation for performance is allowed** as a marked mutator. No benchmark is required.
 - **A loosening for a folder or the whole repo** is a named exemption with its reason in `ogham.local.md`, never a bare config change.
 

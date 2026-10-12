@@ -25,7 +25,7 @@ execution: code
 
 **Revised 2026-10-11 for U3 (`docs/decisions/core-standard-shape.md`):** the coding standard gains a sources page, `standard/coding/sources.md`, which the core names by its vendored path. KTD1, the output tree, U3's files and a U6 test scenario now list it.
 
-**Records outside this repo:** the rulings cited as D1–D21 are in the maintainer's hq records. D1–D13 are in `areas/coding-standards/decisions.md` and D14–D21 in `areas/ogham/decisions.md`. The work item is KOD-5.
+**Records outside this repo:** the rulings cited as D1–D27 are in the maintainer's hq records. D1–D13 are in `areas/coding-standards/decisions.md` and D14–D27 in `areas/ogham/decisions.md`. The work item is KOD-5.
 
 ---
 
@@ -36,7 +36,7 @@ execution: code
 - **Product authority:** Gonçalo. The Product Contract's R-IDs win on behaviour; a KTD wins on mechanism within them; a unit overrides neither.
 - **Stop conditions:**
   - after U1 (research), stop until Gonçalo approves this plan;
-  - stop and ask when evidence shows a settled decision (D1–D21) cannot work, or a requirement cannot be met as written. That includes U10's reviewer-pointer and Codex checks;
+  - stop and ask when evidence shows a settled decision (D1–D27) cannot work, or a requirement cannot be met as written. That includes U10's reviewer-pointer and Codex checks;
   - stop at every merge and at the v1 tag. Under D21 the worker merges a PR only when its four gates hold (review skill, green CI, GitHub reviewers on the final head, a fresh pre-merge review). Gonçalo approves the v1 tag.
 - **Execution profile:** one worker, units in dependency order. After U3, the content units (U4) and the tooling units (U5–U9) can run as two streams; whether to staff them as a team is majordomo's call.
 - **Who finishes:** the worker opens each PR as a draft and marks it ready when the branch is final; the worker merges under D21's gates, and Gonçalo approves the v1 tag.
@@ -184,7 +184,7 @@ This plan covers the companion's shape and its first standard, coding practices.
 
 ### Sources / Research
 
-- Gonçalo's rulings for this plan: hq `areas/coding-standards/decisions.md` (D1–D13) and `areas/ogham/decisions.md` (D14–D21).
+- Gonçalo's rulings for this plan: hq `areas/coding-standards/decisions.md` (D1–D13) and `areas/ogham/decisions.md` (D14–D27).
 - Math Quest functional standard: rules 11–16 in math-quest `docs/code-organisation.md`, enforced by `eslint/pure-by-default.js` and the reviewer; rulings in hq `areas/fp-standard/decisions.md` (D1–D6); PR kodhama/math-quest#883 (MQ-384).
 - Math Quest review criteria for its review agent: math-quest `CODING_STANDARDS.md`.
 - Trellis adoption and configuration limits: trellis `docs/decisions/` — decision-0077 (silence never adopts; supersedes part of decision-0070), decision-0073 (delivery states are a closed set), 2026-09-15 rule-rows-only (projects can only switch rules off), decision-0068 (no personal-scope rules file).
@@ -742,7 +742,7 @@ An unrecognised lint-config shape changes one step. `apply` vendors everything e
 1. Write automated acceptance tests on fixture repos (AE1 local half, AE3, AE4). AE1's "new, empty TypeScript repo" fixture is a `package.json` and a `tsconfig.json` with no code and no installed dependencies.
 2. Run the manual checks and record their evidence in the PR:
    - **AE1, cloud half:** open a cloud session on an adopted fixture repo; it reads ogham's core and lint runs. Trellis's cloud reach follows Trellis's CLI and is noted separately (Risks).
-   - **AE2:** one ce-code-review run on a fixture diff, with and without an exemption. Pick a shape only one core rule claims, and pass the run on any true `og-` ID: the core's rules overlap, so for some shapes a reviewer can rightly cite either of two (`docs/decisions/review-rubric-shape.md`). Record every shape the run cites under two IDs, and bring the list to Gonçalo before the tag as a question about the core. The fixture must also tell an unexplained exemption, which is flagged, from a marked mutator, which passes with no written reason (D27).
+   - **AE2:** one ce-code-review run on a fixture diff, with and without an exemption. Pick a shape only one core rule claims, and pass the run on any true `og-` ID: the core's rules overlap, so for some shapes a reviewer can rightly cite either of two (`docs/decisions/review-rubric-shape.md`). Record every shape the run cites under two IDs, and bring the list to Gonçalo before the tag as a question about the core. The fixture must also tell an unexplained exemption, which is flagged, from a marked mutator, which passes with no written reason (D27). The exempted helper carries its markers: an exemption covers its own rule, so an unmarked one still draws `og-mark-effects`.
    - **The `@` import:** it resolves in Claude Code.
    - **Codex:** a Codex session sees the inline core. Asked to write code, it follows the core. Also record whether Codex's 32 KiB cap applies per `AGENTS.md` file or across the chain (KTD2). If it does not follow the core, stop and bring the evidence to Gonçalo.
    - **The agent-trial for the Success Criteria:** a fresh Claude session in an adopted fixture writes a small feature with no style prompt, then lint and one rubric review run on its diff.

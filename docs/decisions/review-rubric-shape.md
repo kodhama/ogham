@@ -80,8 +80,10 @@ in an adopting repo on the strength of a parenthesis. The maintainer can rule
 otherwise.
 
 **2026-10-11 decision: two lines of the rubric are derived, not quoted.**
-"Reading a constant is fine" under `og-pure-by-default` follows from
-`og-no-module-state`, which bars only mutable module state. The check for
+"Reading a constant fixed in the source is fine" under `og-pure-by-default`
+follows from `og-no-module-state`, which bars only mutable module state. A
+constant filled from the environment, the clock or storage is a hidden input
+by another name, and `og-no-hidden-inputs` still grades the read. The check for
 `og-local-building` flags a write made after the value could be seen from
 outside, which is the limit the core's "while nothing outside can see it yet"
 sets.
@@ -106,12 +108,37 @@ decides nothing), which an earlier draft stated beside the check. They gave an
 edge function that also decides a second rule ID, and an IO function stamping
 its own log line a finding the core does not back.
 
+**2026-10-12 decision: a complete exception covers the rule it names, and no
+more.** A complete exception to `og-return-new-values` leaves the function its
+markers to carry, and a complete exception to `og-mark-effects` covers a
+missing marker. The rubric's line used to say only that an exception "does not
+replace the markers", which gave a missing marker under its own complete
+exception a finding by that line and none by "a complete one covers the
+breach". A function in logic whose clock read is excepted cannot have the
+place marker, so the case is reachable. The TypeScript page's line gets the
+same scope.
+
+**2026-10-12 decision: deciding, for `og-thin-effects`, is applying a business
+rule, with or without a branch.** The check names a branch, a calculation and
+a validation. Plan R1 bars "business logic in effectful code", and the core
+has pure code make "every decision" first. An earlier wording, "works out what
+to write", also caught a marked mutator's own mechanics, such as the
+comparison in a sort. The wording after that, "branches on business rules",
+passed an effect function that computes a discount and saves it; two reviews
+of that head said so, one of them by another model. The check now says that a
+mutator's own mechanics are not deciding, so the TypeScript page's in-place
+sort stays clean. Whether a calculation is a business rule is the reviewer's
+judgment.
+
 **2026-10-11 decision: the rubric does not give every code shape one rule
 ID.** The core's rules overlap, so one line can break two of them. A callback
 that writes to its enclosing function's parameter breaks
 `og-functions-as-values` and `og-return-new-values`. A clock read in logic
 under a comment in the exception's shape, whose reason wrongly says this is
-the edge, breaks `og-no-hidden-inputs` and `og-reasoned-exceptions`. The
+the edge, breaks `og-no-hidden-inputs` and `og-reasoned-exceptions`. A write
+through a store the function was handed reads as an effect, graded on the
+function, or as a call that changes a handed value in place
+(`og-return-new-values`). The
 line-first rule above settles the commonest overlaps, and the rubric leaves
 the rest: a finding cited under either true ID is a correct finding. What the
 page must not do is give the same code a finding by one sentence and none by

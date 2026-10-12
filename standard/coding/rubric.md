@@ -14,7 +14,7 @@ Criteria for grading a diff against the coding standard. **The core (`.ogham/cod
 
 ## Checks, one per core rule
 
-- **`og-pure-by-default`** Logic whose result depends on more than its arguments, or that does something besides return a value, and that no rule below names more exactly. Reading a constant is fine. Accept an effect or a mutation only as the marked exception, kept apart from logic (`og-mark-effects`, `og-thin-effects`).
+- **`og-pure-by-default`** Logic whose result depends on more than its arguments, or that does something besides return a value, and that no rule below names more exactly. Reading a constant fixed in the source is fine. Accept an effect or a mutation only as the marked exception, kept apart from logic (`og-mark-effects`, `og-thin-effects`).
   - Lint: none.
 - **`og-no-hidden-inputs`** Logic that reads the clock, randomness, the environment, storage or other ambient state itself, where it should take the value as an argument. Logic that is handed a clock, a random generator or a store to read from is the same finding: it receives the value, never the thing that produces it. A read at the program's edge that passes the value inward follows the rule.
   - Lint: reports the common spellings of a direct read. It cannot see a read through an alias or another indirection, and it cannot tell the edge from logic.
@@ -26,7 +26,7 @@ Criteria for grading a diff against the coding standard. **The core (`.ogham/cod
   - Lint: reports a module-level variable that can be reassigned. It does not see a constant whose contents are written later.
 - **`og-mark-effects`** A function that mutates or causes an effect and lacks one of its markers: its name; its types, where the language can say it; its doc line (`Effect: …` or `Mutates: …`); and, for an effect, its place at the program's edge or in a file whose job is IO. A mutator needs the first three, not the place.
   - Lint: none.
-- **`og-thin-effects`** A function that mutates or causes an effect and also decides: it branches on business rules. The only branch it needs is whether the effect succeeded. A function that reads, branches on business rules and writes back is the shape to flag, in a simple transaction too. Carrying out what pure code decided and returned is not deciding. The rule has no standing exceptions; a real case carries an exception comment.
+- **`og-thin-effects`** A function that mutates or causes an effect and also decides: it applies a business rule itself, in a branch, a calculation or a validation. The only branch it needs is whether the effect succeeded. A function that reads, branches on business rules and writes back is the shape to flag, in a simple transaction too. Carrying out what pure code decided and returned is not deciding, and neither is a mutator's own mechanics, such as the comparison in a sort. The rule has no standing exceptions; a real case carries an exception comment.
   - Lint: none.
 - **`og-functions-as-values`** A passed function that writes to something it captured, unless the enclosing function just built that value (`og-local-building`). Also the same code repeated where passing the differing behaviour as a function would remove the repeat, and a long function written inline where a named one would do. These last two are judgment: raise them only when the gain is plain.
   - Lint: none.
@@ -47,7 +47,7 @@ Criteria for grading a diff against the coding standard. **The core (`.ogham/cod
 - **Where lint does not report the line**, because only the reviewer checks the rule or because lint cannot see this spelling of the breach, it is a plain comment in the same shape, at the spot. No lint rule asks for it, so look for it wherever a rule is broken.
 - **All three parts are true.** The ID is the rule that is broken. The effect is what the code does. The reason says why the rule cannot hold here; a reason that only restates the effect is not one.
 - **A marked mutator needs no comment** unless lint reports the line: its markers are the record. Where lint does report the line and the comment is missing, the finding is `og-reasoned-exceptions`. In-place mutation for performance is allowed this way. Do not ask for a benchmark.
-- **A complete exception does not replace the markers.** The function still carries them (`og-mark-effects`).
+- **A complete exception covers the rule it names, and no more.** One for another rule does not replace the markers: the function still carries them (`og-mark-effects`).
 - **The edge's own read is not an exception.** Lint reports it though it follows the rule, so the line carries a disable comment saying that this is the edge. Grade the read by the `og-no-hidden-inputs` check: a read that follows the rule is not a finding whatever lint says, and one that does not is a finding under that rule, because saying that this is the edge is no exception.
 
 **A loosening for a folder or the whole repo** is a named exemption in `ogham.local.md`.

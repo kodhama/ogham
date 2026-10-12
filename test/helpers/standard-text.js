@@ -40,7 +40,7 @@ export const HARNESS_WORDING = [
   /slash command/i,
 ];
 
-export const ENTRY_START = /^- \*\*`(og-[a-z0-9-]+)`\*\*\s*(.*)$/;
+const ENTRY_START = /^- \*\*`(og-[a-z0-9-]+)`\*\*\s*(.*)$/;
 export const OG_ID = /(?<![\w-])og-[a-z0-9]+(?:-[a-z0-9]+)*/g;
 
 /**
