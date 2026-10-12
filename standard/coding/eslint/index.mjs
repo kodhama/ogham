@@ -118,7 +118,7 @@ const restrictedSyntax = [
   },
 ];
 
-export const plugin = {
+const plugin = {
   meta: { name: "ogham" },
   rules: {
     ...aliased(builtinRules, BUILTIN_RULES),

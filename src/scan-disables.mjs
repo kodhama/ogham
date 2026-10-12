@@ -8,12 +8,21 @@
 //
 // It has no parser, because `check` runs with Node alone. It walks the text
 // and steps over strings, template literals and regular expressions, so text
-// that only looks like a comment is not read as one. Whether a `/` opens a
-// regular expression or divides is settled by what comes before it, which is
-// a guess in two places: after `)` it is read as division, and after `}` as a
-// regular expression. JSX text is read as code. A wrong guess ends at the
-// line's end for a string or a regular expression, so it can hide or invent a
-// comment on that line only; a stray backtick can do so further.
+// that only looks like a comment is not read as one.
+//
+// Where it guesses. Whether a `/` opens a regular expression or divides is
+// settled by what comes before it: after a value it divides. After `)` it is
+// read as division, and after `}` as a regular expression, unless `>` follows
+// as in a JSX tag that closes itself; either can be wrong. JSX text is read
+// as code, so a quote, a backtick or a comment marker in it is taken for the
+// real thing.
+//
+// What a wrong guess costs. A string or a regular expression ends at its
+// line's end, so most wrong guesses hide or invent a comment on one line. One
+// that swallows a backtick, or the brace that closes a template substitution,
+// or that opens a block comment, can throw off the reading of the rest of the
+// file. The lint rule still reports a comment this scan misses, unless that
+// comment is itself a blanket disable: such a file needs the reviewer.
 
 import { lintOff } from "../standard/coding/eslint/disable-needs-reason.mjs";
 
@@ -46,7 +55,6 @@ const BEFORE_AN_EXPRESSION = new Set([
   "yield",
   "await",
 ]);
-const WORD = /[\w$\u0080-\u{10ffff}]+/uy;
 
 /**
  * Where the line that holds `from` ends: the index of its line break, or the
@@ -133,15 +141,25 @@ export const comments = (text) => {
   /** @type {number[]} */
   const substitutions = [];
   let depth = 0;
-  // Whether a `/` here would open a regular expression, not divide.
-  let regexNext = true;
+  // Whether the code just read is a value, so that a `/` here divides.
+  let afterValue = false;
+  // The last character of code read, white space and comments aside.
+  let last = "";
+  const wordAt = /[\w$\u0080-\u{10ffff}]+/uy;
   let index = text.startsWith("#!") ? lineEnd(text, 0) : 0;
 
   while (index < text.length) {
     const char = text[index] ?? "";
     const pair = text.slice(index, index + 2);
-    WORD.lastIndex = index;
-    const word = WORD.exec(text)?.[0];
+    wordAt.lastIndex = index;
+    const word = wordAt.exec(text)?.[0];
+    // A `/` opens a regular expression where no value comes before it. `</`
+    // and `} />` are JSX tags closing.
+    const opensRegex =
+      char === "/" &&
+      !afterValue &&
+      last !== "<" &&
+      !(last === "}" && text[index + 1] === ">");
 
     if (pair === "//") {
       const end = lineEnd(text, index);
@@ -161,13 +179,18 @@ export const comments = (text) => {
       });
       index = end + 2;
     } else if (word) {
-      regexNext = BEFORE_AN_EXPRESSION.has(word);
+      // A keyword such as `return` expects an expression next; the same word
+      // as a property name (`o.in`) is a value.
+      afterValue = last === "." || !BEFORE_AN_EXPRESSION.has(word);
+      last = word;
       index += word.length;
     } else if (char === '"' || char === "'") {
-      regexNext = false;
+      afterValue = true;
+      last = char;
       index = stringEnd(text, index);
-    } else if (char === "/" && regexNext) {
-      regexNext = false;
+    } else if (opensRegex) {
+      afterValue = true;
+      last = char;
       index = regexEnd(text, index);
     } else if (
       char === "`" ||
@@ -176,12 +199,21 @@ export const comments = (text) => {
       if (char === "}") substitutions.pop();
       const template = templateTextEnd(text, index + 1);
       if (template.substitution) substitutions.push(depth);
-      regexNext = template.substitution;
+      afterValue = !template.substitution;
+      last = "`";
       index = template.end;
+    } else if (afterValue && (pair === "++" || pair === "--")) {
+      // Postfix: what comes before is still a value.
+      index += 2;
     } else {
       if (char === "{") depth += 1;
       if (char === "}") depth -= 1;
-      if (/\S/.test(char)) regexNext = char !== ")" && char !== "]";
+      if (/\S/.test(char)) {
+        // `)` and `]` end a value. A `!` after a value is TypeScript's
+        // postfix operator, or the start of `!=`, whose `=` settles it.
+        afterValue = char === ")" || char === "]" || (char === "!" && afterValue);
+        last = char;
+      }
       index += 1;
     }
   }

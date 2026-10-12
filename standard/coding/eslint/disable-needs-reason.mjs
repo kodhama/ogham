@@ -42,11 +42,14 @@ export const lintOff = (comment) => {
   const mark = REASON_MARK.exec(comment.value);
   const directive = comment.value.slice(0, mark?.index).trim();
   const label = LABEL.exec(directive)?.[1];
+  // ESLint acts on a `//` comment only for a line, on `eslint` only when a
+  // rule follows it, and on `eslint-disable-line` only when it fits one line.
   const read =
-    comment.type === "Block" ||
+    (comment.type === "Block" && directive !== "eslint") ||
     (comment.type === "Line" && IN_A_LINE_COMMENT.test(label ?? ""));
+  const split = label === "eslint-disable-line" && comment.value.includes("\n");
 
-  return label && read
+  return label && read && !split
     ? {
         label,
         reason: mark
@@ -69,6 +72,8 @@ export default {
         "This {{label}} comment gives no reason. Say why after ` -- ` (og-reasoned-exceptions).",
     },
   },
+  // og-mark-effects: reports to ESLint through the context it is handed; ESLint fixes the names `create` and `Program`
+  /** Effect: reports each reasonless comment to ESLint. */
   create: (context) => ({
     Program: () => {
       for (const comment of context.sourceCode.getAllComments()) {

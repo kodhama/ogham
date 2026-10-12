@@ -63,15 +63,27 @@ to resolve in the vendored layout.
 `src/scan-disables.mjs` walks the text and steps over strings, template
 literals and regular expressions. Its header names where it guesses: a `/`
 after `)` is read as division and after `}` as a regular expression, and JSX
-text is read as code. A wrong guess can hide or invent a comment on one line,
-and the inline rule still reports what the scanner misses unless a blanket
-disable hides that too. Checked on 2026-10-12 against the parsers, comment
-for comment: identical on 1,946 files (1,007 JavaScript files under
-`node_modules`, TypeScript's own included; 721 declaration files; 218 of
-Math Quest's `.ts` and `.tsx` source files). On Math Quest's source it finds
-the one reasonless disable the rule mapping names. Turned down: borrowing the
-adopting repo's parser, which would make `check` fail wherever dependencies
-are not installed.
+text is read as code. Most wrong guesses hide or invent a comment on one
+line; one that swallows a backtick or opens a block comment can throw off the
+rest of the file. The inline rule still reports what the scanner misses,
+unless the missed comment is itself a blanket disable. So one case stays with
+the reviewer: a reasonless blanket disable in a file the scanner misreads.
+Turned down: borrowing the adopting repo's parser, which would make `check`
+fail wherever dependencies are not installed. That choice is the one to
+revisit if the limit bites.
+
+**2026-10-12 note: what the scanner was checked against.** The first review
+found it reading a `/` as a regular expression after TypeScript's postfix
+`!`, after a postfix `++` or `--`, after a keyword used as a property name
+(`o.in / 2`), and in the JSX forms `</tag>` and `} />`; each could hide a
+comment, two of them for the rest of the file. All are fixed and tested. An
+earlier sentence here said a wrong guess is confined to one line, which was
+false. After the fix the scanner's comments equal the parsers', comment for
+comment, on 2,149 files: 1,007 JavaScript files under `node_modules`
+(TypeScript's own included), 721 declaration files, and 421 of Math Quest's
+`.ts` and `.tsx` files, of which only 21 are `.tsx`. So JSX is the least
+tested ground. On Math Quest's source it finds the one reasonless disable the
+rule mapping names.
 
 **2026-10-12 decision: the tests carry their code inline.** The plan lists
 `test/fixtures/lint/`; no fixture files were needed. The rules run on strings
@@ -85,11 +97,12 @@ code reads or writes through it, so a marked `save…` function is reported.
 The TypeScript page and the rubric now say its disable comment states what is
 written and that this is the edge, and that the write is graded through the
 function's markers. Before this the rubric asked that comment for an
-exception's three parts though no rule was broken. This is the one sentence
-the rubric gained; a test holds its place.
+exception's three parts though no rule was broken. The rubric gained one
+bullet for this, and two of its sentences were reworded; a test holds the
+bullet's place.
 
 **Left for U6.** Which files `check` scans (the preset's file scope) and its
-place in the lint script. Until then a reasonless blanket disable in ogham's
-own source is seen only by the scanner's tests, not by `npm run lint`. The
+place in the lint script. Until then nothing in `npm run lint` reports a
+reasonless blanket disable in ogham's own source. The
 TypeScript page says a blanket disable silences the reason rule; U6 adds that
 `check` reports it.

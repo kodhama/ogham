@@ -140,11 +140,14 @@ test("a clock or environment read spelled as syntax is reported, citing og-no-hi
   }
 });
 
-test("new Date(x) is not reported", () => {
+test("new Date(x) is not reported; Date(x) is, since it ignores its argument and reads the clock", () => {
   assert.deepEqual(
     ruleIds("export const day = (at) => new Date(at).toISOString();"),
     [],
   );
+  assert.deepEqual(ruleIds("export const stamp = (at) => Date(at);"), [
+    "ogham/no-restricted-syntax",
+  ]);
 });
 
 test("a top-level let or var is reported, exported or not, citing og-no-module-state", () => {
@@ -367,8 +370,11 @@ test("JS and TS source files are checked; test files and declaration files are n
   }
   for (const filePath of [
     "src/cart.test.ts",
+    "src/cart.spec.ts",
     "test/cart.ts",
     "src/globals.d.ts",
+    "src/globals.d.mts",
+    "src/globals.d.cts",
   ]) {
     assert.deepEqual(await reported(typed, filePath), [], filePath);
   }

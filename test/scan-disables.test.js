@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { Linter } from "eslint";
+import tseslint from "typescript-eslint";
 
 import preset from "../standard/coding/eslint/index.mjs";
 import { lintOff } from "../standard/coding/eslint/disable-needs-reason.mjs";
@@ -102,6 +103,7 @@ test("comments that turn nothing off are left alone", () => {
     "// a note about eslint-disable-next-line",
     "/* global window */",
     "#!/usr/bin/env node\n// plain",
+    "#!/usr/bin/env node /* eslint-disable */\n",
   ]) {
     assert.deepEqual(labels(code), [], code);
   }
@@ -129,9 +131,100 @@ test("a comment after such text is still found", () => {
     "const a = `${ { c: `}` } }`; /* eslint-disable */",
     "const a = b / c; /* eslint-disable */ const d = e / f;",
     "const a = /[/]/.test(b); /* eslint-disable */",
+    "const a = /[/']/.test(b); /* eslint-disable */",
+    "const a = <p>don't</p>;\n/* eslint-disable */",
     "const a = x.map((y) => y / 2); // eslint-disable-line",
   ]) {
     assert.equal(labels(code).length, 1, code);
+  }
+});
+
+test("a slash after a value divides: TypeScript's postfix !, a postfix ++ and a keyword used as a property name", () => {
+  for (const code of [
+    "box.mid = width! / 2; // eslint-disable-line",
+    "const half = i++ / 2; // eslint-disable-line",
+    "const half = i-- / 2; // eslint-disable-line",
+    "const half = o.in / 2; // eslint-disable-line",
+    "const half = o?.return / 2; // eslint-disable-line",
+  ]) {
+    assert.deepEqual(labels(code), ["eslint-disable-line"], code);
+  }
+});
+
+test("a slash that follows an operator still opens a regular expression", () => {
+  for (const code of [
+    "const a = !/'/.test(b); const c = '/* eslint-disable */';",
+    "const a = b + /'/.source; const c = '/* eslint-disable */';",
+    "const a = typeof /'/; const c = '/* eslint-disable */';",
+    "const a = `${/'/.source}`; const c = '/* eslint-disable */';",
+  ]) {
+    assert.deepEqual(labels(code), [], code);
+  }
+});
+
+// Each sample is real TypeScript or TSX that an earlier version of the
+// scanner misread, or that exercises one of its branches.
+const TYPED_SAMPLES = [
+  [
+    "export function pct(done?: number, total?: number): string {",
+    "  return `${Math.round(done! / total! * 100)}%`; // one",
+    "}",
+    "/* two */",
+  ],
+  [
+    "const html = `<div id=\"root\">${renderToString(<App store={store} />)}</div>`;",
+    "/* one */",
+  ],
+  [
+    "export const row = <tr>{cells.map((cell) => <td key={cell.id}>{cell.text}</td>)}</tr>; // one",
+    "export const rule = <hr />; /* two */",
+    "export const half = <Meter value={total / 2} />; // three",
+    "export const el = <p>{half}</p>; /* four */",
+    "export const pick = `${ { a: 1 }.a /* five */ }`;",
+  ],
+  [
+    "function label<T extends string>(parts: readonly T[]): string {",
+    "  return parts.map((part) => `${part}`).join(`${'/'}`); /* one */",
+    "}",
+    "// two",
+    "const nested = `a ${ { b: `c ${d} e` }.b } f`; /* three */",
+    "const ratio = (a + b) / (c[0] / 2); // four",
+    "const path = url.replace(/\\/+$/, '').split('/'); // five",
+  ],
+];
+
+/**
+ * The comments typescript-eslint's parser finds in typed code or JSX.
+ * @param {string} code
+ */
+const parsedComments = (code) => {
+  const parse =
+    /** @type {(code: string, options: object) => { ast: { comments?: readonly { type: string, value: string, range?: readonly number[] }[] } }} */ (
+      tseslint.parser.parseForESLint
+    );
+  const { ast } = parse(code, {
+    comment: true,
+    range: true,
+    ecmaFeatures: { jsx: true },
+  });
+
+  return (ast.comments ?? []).map(({ type, value, range }) => ({
+    type,
+    value,
+    start: range?.[0],
+  }));
+};
+
+test("the scanner reads comments as the TypeScript parser does, in typed code and JSX", () => {
+  for (const lines of TYPED_SAMPLES) {
+    const code = lines.join("\n");
+
+    assert.ok(parsedComments(code).length > 0, code);
+    assert.deepEqual(
+      comments(code).map(({ type, value, start }) => ({ type, value, start })),
+      parsedComments(code),
+      code,
+    );
   }
 });
 
@@ -190,6 +283,16 @@ test("the scanner reads comments as ESLint's parser does", () => {
     comments(code).map(({ type, value }) => ({ type, value })),
     seen.filter((comment) => comment.type !== "Shebang"),
   );
+
+  // The same text with Windows line endings: a `//` comment's text stops
+  // before the carriage return.
+  const windows = code.replaceAll("\n", "\r\n");
+  seen.length = 0;
+  assert.deepEqual(linter.verify(windows, [probe], "src/example.js"), []);
+  assert.deepEqual(
+    comments(windows).map(({ type, value }) => ({ type, value })),
+    seen.filter((comment) => comment.type !== "Shebang"),
+  );
 });
 
 test("what the scanner calls a lint-off comment is what ESLint honours", () => {
@@ -207,6 +310,9 @@ test("what the scanner calls a lint-off comment is what ESLint honours", () => {
     ["/* eslint-disable-next-line no-debugger */\ndebugger;", true],
     ['/* eslint no-debugger: "off" */\ndebugger;', true],
     ["/* eslint-enable no-debugger */\ndebugger;", false],
+    ['// eslint no-debugger: "off"\ndebugger;', false],
+    ["/* eslint */\ndebugger;", false],
+    ["debugger; /* eslint-disable-line\n no-debugger */", false],
     ["// eslint-disable-next-line no-debugger -- stops here\ndebugger;", true],
   ])) {
     const silenced = linter.verify(code, config, "src/example.js").length === 0;
