@@ -114,6 +114,15 @@ test("storage used as a bare global is reported, citing og-no-hidden-inputs", ()
   }
 });
 
+test("a write through storage is reported like a read: lint cannot tell them apart", () => {
+  assert.deepEqual(
+    ruleIds(
+      "export const saveGrade = (grade) => { localStorage.setItem('grade', grade); };",
+    ),
+    ["ogham/no-restricted-globals"],
+  );
+});
+
 test("a clock or environment read spelled as syntax is reported, citing og-no-hidden-inputs", () => {
   for (const read of [
     "new Date()",

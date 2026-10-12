@@ -33,6 +33,12 @@ Turned down: `@eslint/js` for `eslint:recommended`. ESLint 10 no longer
 installs it, so it would be one more dependency for a configuration that is
 replaced when the preset lands.
 
+**2026-10-12 note: the preset landed, and the recommended set stays beside
+it.** The preset checks only what the coding standard asks, so on its own it
+would drop the unused-variable and similar checks ogham's code has passed
+since the first commit. `eslint.config.mjs` runs both. The preset's tests use
+typescript-eslint's parser, as expected.
+
 **2026-10-10 decision: @types/node** (development only, `^20.19.43`). The plan
 names three development dependencies and this is a fourth: `checkJs` cannot
 resolve `node:test`, `node:fs` and the rest without it. It is held at major

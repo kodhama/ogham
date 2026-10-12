@@ -25,7 +25,7 @@ The section's own heading and its two definitions, "pure" and "an effect", land 
 
 ## Checkers
 
-Math Quest's "Checked by" column carries over, with one change. **The lint half is a promise until the preset ships** (U5): the preset ports Math Quest's rule list, and U5's tests hold it to that. Until then, read "the same" below as the split between lint and reviewer, not as a tested list of spellings.
+Math Quest's "Checked by" column carries over, with one change, in rule 16's row. **The lint half is the preset** (`standard/coding/eslint/`). It ports the rule list of Math Quest's `eslint/pure-by-default.js`, read on 2026-10-12, without the browser floor that block also carries, and `test/eslint-preset.test.js` holds it to the spellings Math Quest's own lint test lists. Read "the same" below as that tested list.
 
 | Rule | Math Quest checks with | Ogham checks with |
 | --- | --- | --- |
