@@ -16,6 +16,7 @@
 import { builtinRules } from "eslint/use-at-your-own-risk";
 
 import disableNeedsReason from "./disable-needs-reason.mjs";
+import { FILES, IGNORES } from "./scope.mjs";
 
 export const BUILTIN_RULES = [
   "no-param-reassign",
@@ -130,14 +131,8 @@ const plugin = {
 export default [
   {
     name: "ogham/coding",
-    // Source files, and not tests or type declarations: the standard covers
-    // source code only, and a declaration file holds no logic.
-    files: ["**/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx}"],
-    ignores: [
-      "**/*.{test,spec}.*",
-      "**/{test,tests,__tests__}/**",
-      "**/*.d.{ts,mts,cts}",
-    ],
+    files: FILES,
+    ignores: IGNORES,
     plugins: { ogham: plugin },
     linterOptions: { reportUnusedDisableDirectives: "error" },
     rules: {
