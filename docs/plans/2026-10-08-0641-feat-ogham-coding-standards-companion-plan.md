@@ -283,7 +283,7 @@ This plan covers the companion's shape and its first standard, coding practices.
   - **No CI step runs lint:** it reports that and does not edit CI.
 - KTD11. **Exemptions live in `ogham.local.md` and pair with lint where lint is involved.**
   - **An exemption entry** names the `og-` ID, its scope and the reason.
-  - **A code-level exception** is `eslint-disable-next-line ogham/<rule> -- og-<id>: <effect>`.
+  - **A code-level exception** is `eslint-disable-next-line ogham/<rule> -- og-<id>: <effect>; <reason>`.
   - **A folder-wide loosening** is a block in the repo's own config that turns an `ogham/*` rule off for a glob, plus a matching exemption entry. KTD8's second pass accepts it only with that entry.
   - **A local tightening** narrows a core rule by citing its `og-` ID, or adds a rule with a `local-` ID.
 - KTD12. **The research pass is bounded and source-first** (D16, D8). For each principle:
@@ -565,7 +565,7 @@ An unrecognised lint-config shape changes one step. `apply` vendors everything e
 - A top-level `let` or `var` is reported; a `let` inside a function is not.
 - Pushing into an array the function just created raises no lint error; the rubric covers that judgment.
 - A repo block setting its own `no-restricted-syntax` after the preset leaves every `ogham/no-restricted-syntax` report intact, and its own reports stay separate.
-- `eslint-disable-next-line ogham/no-param-reassign` with no `--` reason is reported by `disable-needs-reason`. The same line with `-- og-…: mutates the caller's buffer` is accepted.
+- `eslint-disable-next-line ogham/no-param-reassign` with no `--` reason is reported by `disable-needs-reason`. The same line with `-- og-…: mutates the caller's buffer; a copy per call is too slow` is accepted. The lint rule checks only that a reason is there; the reviewer checks its three parts.
 - A blanket `/* eslint-disable */` with no reason is caught by the scanner even though it silences the ESLint rule. A disable naming `ogham/disable-needs-reason` itself is caught too.
 - An unused disable directive is an error.
 - A `.js` file and a `.ts` file on source paths are both checked; a file under a test glob is not.

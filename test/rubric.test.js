@@ -100,6 +100,10 @@ const EXCEPTION_OBLIGATIONS = [
     patterns: [/edge's own read/, /not an exception/],
   },
   {
+    name: "the edge's own write",
+    patterns: [/own write/, /straight to the function/],
+  },
+  {
     name: "an exemption's reach",
     patterns: [/exemption covers/, /scope/],
   },

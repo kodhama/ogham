@@ -27,6 +27,8 @@ The same goes for randomness (take a seed), `process.env` (take the parsed confi
 const now = Date.now();
 ```
 
+**The same goes for a write at the edge that lint reports.** Lint restricts a name such as `localStorage` whether the code reads or writes through it, so a marked `save…` function that calls `localStorage.setItem(…)` is reported. Its comment says what is written and that this is the edge.
+
 Or exempt the edge's folder by name in `ogham.local.md`.
 
 ## Returning new values
@@ -202,7 +204,7 @@ Where lint does not report the line, it is a plain comment in the same shape:
 // og-thin-effects: pages through the table and decides per page; the rows do not fit in memory
 ```
 
-- **The text after `--` is required**: the rule ID, the effect, and why the rule cannot hold here. The edge's own read is not an exception: its text says that this is the edge ([Pure functions and hidden inputs](#pure-functions-and-hidden-inputs)). A disable with no text is itself reported, and so is a disable that no longer silences anything.
+- **The text after `--` is required**: the rule ID, the effect, and why the rule cannot hold here. The edge's own read or write is not an exception: its text says that this is the edge ([Pure functions and hidden inputs](#pure-functions-and-hidden-inputs)). A disable with no text is itself reported, and so is a disable that no longer silences anything.
 - **The function still carries its markers** (`og-mark-effects`): an exception covers the rule it names, and no other. A marked mutator that lint does not report needs no comment at all.
 - **In-place mutation for performance is allowed** as a marked mutator. No benchmark is required.
 - **A loosening for a folder or the whole repo** is a named exemption with its reason in `ogham.local.md`, never a bare config change.
@@ -214,15 +216,17 @@ The preset registers ESLint's own rules under an `ogham/` prefix, so they never 
 | Lint rule | Core rule | What it sees |
 | --- | --- | --- |
 | `ogham/no-param-reassign` | `og-return-new-values` | Assigning to a parameter or to one of its properties, and `delete` on one |
-| `ogham/no-restricted-properties` | `og-no-hidden-inputs` | Clock, randomness and environment reads spelled as a property, such as `Date.now()`, `Math.random()` and `process.env` |
-| `ogham/no-restricted-globals` | `og-no-hidden-inputs` | Ambient globals used directly, such as browser storage |
-| `ogham/no-restricted-syntax` | `og-no-hidden-inputs`, `og-no-module-state` | `new Date()` with no argument and `Date()`; a top-level `let` or `var` |
-| `ogham/disable-needs-reason` | `og-reasoned-exceptions` | A disable directive with no `-- reason` |
+| `ogham/no-restricted-properties` | `og-no-hidden-inputs` | The clock, randomness, the environment and storage spelled as a property of a global: `Date.now()`, `performance.now()`, `Math.random()`, `crypto.getRandomValues()`, `process.env`, and `localStorage` or `sessionStorage` on `window`, `globalThis` or `self` |
+| `ogham/no-restricted-globals` | `og-no-hidden-inputs` | Browser storage used as a bare global: `localStorage`, `sessionStorage` |
+| `ogham/no-restricted-syntax` | `og-no-hidden-inputs`, `og-no-module-state` | `new Date()` with no argument, `Date()` and `import.meta.env`; a top-level `let` or `var`, exported or not |
+| `ogham/disable-needs-reason` | `og-reasoned-exceptions` | A comment that turns lint off with no `-- reason`: a disable for a line, for a range or for the rest of the file, and a rule's setting changed in a comment. A disable that names no rule, or names this one, silences this rule too, and so does a setting comment that turns it off |
+
+The preset covers source files with a JavaScript or TypeScript extension. It leaves out test files (`*.test.*`, `*.spec.*`, and folders named `test`, `tests` or `__tests__`) and type declaration files. It also makes a disable comment that no longer silences anything an error.
 
 **Lint is a tripwire for the common spellings, not a proof.** The reviewer checks what it cannot see:
 
 - a method call that mutates a parameter, such as `items.push(x)`;
 - a write that reaches a parameter by another name: an alias (`const c = cart; c.total = x`), a part destructured from it in the function body, or a loop variable over one of its collections;
-- a hidden input read through an alias (`const clock = Date; clock.now()`) or through `globalThis`;
+- a hidden input read through an alias (`const clock = Date; clock.now()`) or through a longer path (`globalThis.Date.now()`);
 - a top-level `const` holding a collection that is written later;
 - every rule the table does not list.

@@ -10,7 +10,7 @@ Criteria for grading a diff against the coding standard. **The core (`.ogham/cod
 - **Run every check below**, then the checks in [Exceptions and exemptions](#exceptions-and-exemptions).
 - **Report each finding in the [finding format](#finding-format)**, citing the rule ID.
 - **Grade the line first, then the function.** Two rules are about what one line does: `og-no-hidden-inputs` for a read and `og-return-new-values` for a write. Where a line breaks one of them and no exception or exemption is claimed for it, cite that rule and stop: the function is not graded for that line. Where an exception is claimed for it and is incomplete, cite `og-reasoned-exceptions` and stop the same way. Where the line is allowed, because it follows its rule, its function's name or doc line says it mutates, or a complete exception or an exemption covers it, grade the function for it: its markers (`og-mark-effects`), and whether it also decides (`og-thin-effects`). An effect that is neither kind of line goes straight to the function.
-- **Trust lint for what it sees.** Each check says what lint covers. Where lint passed on the diff, check only what lint cannot see. Where the language has no lint preset, lint did not run, or you cannot tell, check all of it. Lint did not pass code it was told to skip: a line under a disable comment, or a file that a suppressions file or a config change covers for that rule. Check that code yourself. The language page under `.ogham/coding/` names each lint rule and what it sees.
+- **Trust lint for what it sees.** Each check says what lint covers. Where lint passed on the diff, check only what lint cannot see. Where the language has no lint preset, lint did not run, or you cannot tell, check all of it. Lint did not pass code it was told to skip: code a disable comment covers, whether that is a line, a range or the rest of the file, or a file that a suppressions file or a config change covers for that rule. Check that code yourself. The language page under `.ogham/coding/` names each lint rule and what it sees.
 
 ## Checks, one per core rule
 
@@ -43,12 +43,13 @@ Criteria for grading a diff against the coding standard. **The core (`.ogham/cod
 
 **A code-level exception** is a comment at the spot, in one shape: `og-<id>: <effect>; <reason>`.
 
-- **Where lint reports the line**, it is the reason text of the lint disable comment; the language page shows the syntax. A disable comment for one of the standard's lint rules with no text, or with text that lacks one of the three parts, is a finding. The edge's own read, below, is not graded for its comment's form.
+- **Where lint reports the line**, it is the reason text of the lint disable comment; the language page shows the syntax. A disable comment for one of the standard's lint rules with no text, or with text that lacks one of the three parts, is a finding. The edge's own read or write, below, is not graded for its comment's form.
 - **Where lint does not report the line**, because only the reviewer checks the rule or because lint cannot see this spelling of the breach, it is a plain comment in the same shape, at the spot. No lint rule asks for it, so look for it wherever a rule is broken.
 - **All three parts are true.** The ID is the rule that is broken. The effect is what the code does. The reason says why the rule cannot hold here; a reason that only restates the effect is not one.
 - **A marked mutator needs no comment** unless lint reports the line: its markers are the record. Where lint does report the line and the comment is missing, the finding is `og-reasoned-exceptions`. In-place mutation for performance is allowed this way. Do not ask for a benchmark.
 - **A complete exception covers the rule it names, and no more.** One for another rule does not replace the markers: the function still carries them (`og-mark-effects`).
 - **The edge's own read is not an exception.** Lint reports it though it follows the rule, so the line carries a disable comment saying that this is the edge. Grade the read by the `og-no-hidden-inputs` check: a read that follows the rule is not a finding whatever lint says, and one that does not is a finding under that rule, because saying that this is the edge is no exception.
+- **Nor is an effect function's own write that lint reports.** Lint restricts some names, such as storage, whether code reads or writes through them. Where a function that causes an effect writes through one, the line carries a disable comment saying what is written and that this is the edge. The write goes straight to the function: grade its markers (`og-mark-effects`) and whether it also decides (`og-thin-effects`).
 
 **A loosening for a folder or the whole repo** is a named exemption in `ogham.local.md`.
 
