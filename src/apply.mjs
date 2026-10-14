@@ -162,7 +162,8 @@ export const repoIo = (root) => {
             stdio: ["ignore", "pipe", "pipe"],
             maxBuffer: 256 * 1024 * 1024,
             timeout: GIT_TIMEOUT_MS,
-            // A remote that asks for credentials fails instead of prompting.
+            // git asks for no credentials on the terminal. An askpass program
+            // or ssh the user configured may still ask; the limit bounds it.
             // eslint-disable-next-line ogham/no-restricted-properties -- og-no-hidden-inputs: passes the environment on to git; this is the edge, where git is run
             env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
           }),
@@ -171,6 +172,12 @@ export const repoIo = (root) => {
         const failed = /** @type {{ stderr?: unknown, message: string }} */ (
           error
         );
+        if (isCode(error, "ETIMEDOUT")) {
+          return {
+            ok: false,
+            out: `git gave no answer in ${GIT_TIMEOUT_MS / 60000} minutes and was stopped`,
+          };
+        }
         return {
           ok: false,
           out:
@@ -352,7 +359,18 @@ const applyAll = (io, write, remove, lock) => {
   } catch (error) {
     const unrestored = [...before].flatMap(([path, text]) => {
       try {
-        if (io.read(path) === text) return [];
+        if (io.read(path) === text) {
+          // Still absent: a write that failed may have made its folders, so
+          // prune them, best effort. Nothing was changed to name.
+          if (text === undefined) {
+            try {
+              io.remove(path);
+            } catch {
+              // A folder that will not go is left; git does not see it.
+            }
+          }
+          return [];
+        }
         if (text === undefined) io.remove(path);
         else io.write(path, text);
         return [];
@@ -423,7 +441,7 @@ const carryOut = (io, facts, plan, command) => {
       lines: [
         resolved.failure === undefined
           ? `Found no tag v${adoption.version} at ${REMOTE}, so the lock could not record the source commit. Nothing was written.`
-          : `Could not ask ${REMOTE} for tag v${adoption.version} (git said: ${resolved.failure}). Nothing was written.`,
+          : `Could not ask ${REMOTE} for tag v${adoption.version}: ${resolved.failure}. Nothing was written.`,
       ],
     };
   }

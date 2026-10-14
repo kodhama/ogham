@@ -6,6 +6,8 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import {
+  existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   readdirSync,
@@ -16,7 +18,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -503,7 +505,7 @@ test("install reports git's error, not a missing tag, when the remote cannot be 
   assert.equal(outcome.code, 1);
   assert.match(
     outcome.lines.join("\n"),
-    /git said: fatal: unable to access the remote\)\. Nothing was written\./,
+    /for tag v\S+: fatal: unable to access the remote\. Nothing was written\./,
   );
   assert.equal(status(root), "");
 });
@@ -528,6 +530,58 @@ test("a failed rollback names the paths it could not put back, and claims no cle
   assert.match(printed, /could not put these paths back/);
   assert.match(printed, /\.ogham\/coding\/rubric\.md: Error: read-only/);
   assert.doesNotMatch(printed, /core\.md:/);
+});
+
+test("a rollback names a path whose read fails while it is put back", (t) => {
+  const root = fixtureRepo(t, TS_REPO);
+  const io = ioFor(root);
+  const failing = ".ogham/check.mjs";
+  let failed = false;
+  /** @type {Io} */
+  const broken = {
+    ...io,
+    write: (path, text) => {
+      if (path === failing) {
+        failed = true;
+        throw new Error("disk full");
+      }
+      io.write(path, text);
+    },
+    read: (path) => {
+      if (failed && path === failing) throw new Error("read broke");
+      return io.read(path);
+    },
+  };
+
+  const outcome = install(broken, shipped);
+
+  assert.equal(outcome.code, 1);
+  const printed = outcome.lines.join("\n");
+  assert.doesNotMatch(printed, /put every path it touched back/);
+  assert.match(printed, /\.ogham\/check\.mjs: Error: read broke/);
+});
+
+test("a rolled-back first install leaves no empty folder, even after a write that failed past its mkdir", (t) => {
+  const root = fixtureRepo(t, TS_REPO);
+  const io = ioFor(root);
+  /** @type {Io} */
+  const brokenOpen = {
+    ...io,
+    write: (path) => {
+      mkdirSync(dirname(join(root, path)), { recursive: true });
+      throw new Error("EMFILE open");
+    },
+  };
+
+  const outcome = install(brokenOpen, shipped);
+
+  assert.equal(outcome.code, 1);
+  assert.match(
+    outcome.lines.join("\n"),
+    /install failed and put every path it touched back as it was: EMFILE open/,
+  );
+  assert.equal(existsSync(join(root, ".ogham")), false);
+  assert.equal(status(root), "");
 });
 
 test("a rollback leaves alone the paths the run never changed", (t) => {
@@ -580,6 +634,25 @@ test("update writes nothing through .ogham/ when it is a symbolic link, and roll
   const before = readFileSync(victim, "utf8");
 
   const outcome = update(ioFor(root), shippedAt("9.9.9"), true);
+
+  assert.equal(outcome.code, 1);
+  assert.match(outcome.lines.join("\n"), /\.ogham is a symbolic link/);
+  assert.match(outcome.lines.join("\n"), /put every path it touched back/);
+  assert.equal(readFileSync(victim, "utf8"), before);
+  assert.equal(status(root), "");
+});
+
+test("remove deletes nothing through .ogham/ when it is a symbolic link, and rolls back", (t) => {
+  const root = adoptedRepo(t);
+  const outside = mkdtempSync(join(tmpdir(), "ogham-outside-"));
+  t.after(() => rmSync(outside, { recursive: true, force: true }));
+  renameSync(join(root, ".ogham"), join(outside, "ogham"));
+  symlinkSync(join(outside, "ogham"), join(root, ".ogham"));
+  commitAll(root, "link .ogham out of the repo");
+  const victim = join(outside, "ogham/check.mjs");
+  const before = readFileSync(victim, "utf8");
+
+  const outcome = remove(ioFor(root));
 
   assert.equal(outcome.code, 1);
   assert.match(outcome.lines.join("\n"), /\.ogham is a symbolic link/);

@@ -11,7 +11,7 @@ const { code, lines } = await run(process.argv.slice(2), process.cwd()).catch(
   (/** @type {unknown} */ error) => ({
     code: 1,
     lines: [
-      `ogham stopped: ${error instanceof Error ? error.message : String(error)}`,
+      `ogham stopped: ${(error instanceof Error ? error.message : String(error)).replace(/\s*\n\s*/g, " ").trim()}`,
     ],
   }),
 );

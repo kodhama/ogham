@@ -61,8 +61,7 @@ choices from the lock and never looks again.
 **2026-10-13 decision: each command is facts, then a pure plan, then one
 all-or-nothing step.** `src/plan.mjs` turns what was read from the repo into
 a refusal, "nothing to do", or the files to write and remove. `src/apply.mjs`
-is the one file that reads and writes the repo's files and runs git on them;
-`src/cli.mjs` only asks git for the repo's root.
+is the one file that touches the disk and git.
 
 **2026-10-13 decision: rollback restores from a snapshot, not from git.**
 Before the first write the command reads every path it will touch; on a
@@ -104,28 +103,10 @@ After writing and removing, the command reads every owned file back and
 requires each to match the lock it is about to write; `remove` requires each
 removed path to be gone. Only then is the lock written, so a lock on disk
 always describes files that were checked. Any failure, including a failed
-check or a failed lock write, writes back each touched path that changed. If
-putting a path back fails too, the command names that path rather than
-claiming a clean rollback. Removing a file also removes each folder it leaves
-empty, so a rolled-back first `install` leaves no empty `.ogham/`.
-
-**2026-10-14 decision: ogham writes no file through a symbolic link.** A
-symbolic link inside `.ogham/` fails `install`, `update` and `remove` while
-they read, before anything is written. A path to write or remove that is, or
-passes through, a symbolic link fails the command while it writes, and it
-then rolls back. `check` writes nothing: it reads through a link and judges
-the text it finds there. A committed
-link under `.ogham/` could otherwise make `update` overwrite a file outside
-the repo, make `remove` delete one past the clean-paths check, or leave a
-linked folder behind while `remove` reports success.
-
-**2026-10-14 decision: git never prompts, and gives up in time.** Every git
-call `src/apply.mjs` makes runs with `GIT_TERMINAL_PROMPT=0` and a
-five-minute limit, so a remote that asks for credentials, or a network that
-stalls, fails the command instead of holding it. The two other git calls,
-the root lookup in `src/cli.mjs` and the check's file listing, read only the
-local repo and never reach a remote. When the tag lookup fails, the command prints git's
-error, not "no tag".
+check or a failed lock write, writes the snapshot back. If putting a path
+back fails too, the command names that path rather than claiming a clean
+rollback. Removing a file also removes each folder it leaves empty, so a
+rolled-back first `install` leaves no empty `.ogham/`.
 
 **2026-10-14 decision: what a command prints, and its exit code.** A
 refusal goes to standard error and exits 1, with nothing written. A command
@@ -141,13 +122,52 @@ it runs from any subfolder, and refuses outside a git repo. `check` runs the
 shipped check's own reader on that root, the same code `.ogham/check.mjs`
 runs, at the running version.
 
-**2026-10-14 decision: Node 22 is the floor** (the maintainer's ruling, on
-this PR). The plan said Node 20, which is past its end of support, and
-`npm test`'s glob needs Node 21 or later. `engines` says `>=22`, and a
-second CI job, `floor`, runs the tests on Node 22. It is a job of its own,
-not a matrix, because a matrix would rename `test`, the check `main`'s
-ruleset requires. `@types/node` moves to 22 with it
-(`docs/decisions/dependency-adoption.md`).
+**2026-10-14 decision, provisional: Node 22 is the floor.** The plan said
+Node 20, which is past its end of support, and `npm test`'s glob needs Node 21
+or later. `engines` says `>=22`, and a second CI job, `floor`, runs the tests
+on Node 22. It is a job of its own, not a matrix, because a matrix would
+rename `test`, the check `main`'s ruleset requires. `@types/node` stays at 20
+until the maintainer rules the floor; `docs/decisions/dependency-adoption.md`
+raises the two together.
+
+**2026-10-14 decision: ogham writes no file through a symbolic link.** A
+symbolic link inside `.ogham/` fails `install`, `update` and `remove` while
+they read, before anything is written. A path to write or remove that is, or
+passes through, a symbolic link fails the command while it writes, and it
+then rolls back. `check` writes nothing: it reads through a link and judges
+the text it finds there. A committed link under `.ogham/` could otherwise
+make `update` overwrite a file outside the repo, make `remove` delete one
+past the clean-paths check, or leave a linked folder behind while `remove`
+reports success.
+
+**2026-10-14 decision: git asks for nothing on the terminal, and gives up
+in time.** Every git call `src/apply.mjs` makes runs with
+`GIT_TERMINAL_PROMPT=0` and a five-minute limit. git then asks for no
+credentials on the terminal; an askpass program or ssh the user configured
+may still ask, and the limit bounds how long that can hold the command. The
+two other git calls, the root lookup in `src/cli.mjs` and the check's file
+listing, read only the local repo and never reach a remote. When the tag
+lookup fails, the command prints git's error, or says git gave no answer in
+time, rather than "no tag".
+
+**2026-10-14 ruling: Node 22 is the floor.** The maintainer ruled the
+provisional floor above on this PR: Node 22. `@types/node` moves to 22 with
+it (`docs/decisions/dependency-adoption.md`).
+
+**2026-10-14 corrections, after the review of this unit.**
+
+- The 2026-10-13 entry's "`src/apply.mjs` is the one file that touches the
+  disk and git" holds for `install`, `update` and `remove`. `check` reads
+  the repo's files and runs `git ls-files` in `standard/check.mjs`, and
+  `src/cli.mjs` asks git for the repo's root.
+- The rollback (2026-10-14, "a write is checked before the lock is
+  written") writes back each touched path whose text changed, not every
+  touched path, and names each one it could not put back. A path that was
+  absent before still has its empty folders pruned, best effort, so a
+  rolled-back first `install` leaves no empty `.ogham/` even when a write
+  failed after making its folder.
+- A command that throws, rather than refusing, prints `ogham stopped:` and
+  the error on one line, and exits 1.
 
 **Left for the lint wiring unit (plan U9).** The preflight that stops on an
 existing reasonless disable before anything is written; a lock marked
