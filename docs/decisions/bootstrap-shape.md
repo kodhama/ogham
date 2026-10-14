@@ -89,6 +89,47 @@ The plan lists `test/fixtures/repos/`; no fixture tree is committed. A
 committed fixture's files would be typechecked and linted as ogham's own, and
 its test files would match `npm test`'s glob.
 
+**2026-10-14 decision: the tag is looked up before anything is written.**
+`install`, and an `update` to another version, ask the remote for the
+version's tag with `git ls-remote` and record the commit it points at (the
+peeled commit for an annotated tag). No tag means a refusal with nothing
+written, since the lock would otherwise pin no source. The remote is one
+constant, ogham's GitHub URL; the tests point it at a local repo through
+git's `insteadOf`, so no test needs the network. An `update` to the same
+version keeps the commit the lock already records.
+
+**2026-10-14 decision: a write is checked before the lock is written.**
+After writing and removing, the command reads every owned file back and
+requires each to match the lock it is about to write; `remove` requires each
+removed path to be gone. Only then is the lock written, so a lock on disk
+always describes files that were checked. Any failure, including a failed
+check or a failed lock write, writes the snapshot back. If putting a path
+back fails too, the command names that path rather than claiming a clean
+rollback. Removing a file also removes each folder it leaves empty, so a
+rolled-back first `install` leaves no empty `.ogham/`.
+
+**2026-10-14 decision: what a command prints, and its exit code.** A
+refusal goes to standard error and exits 1, with nothing written. A command
+line ogham cannot read exits 2 with the usage. "Already adopted" and
+"already at version" exit 0. After writing, a command prints git's diff of
+each touched path that existed before, then names each file it created,
+since git's diff does not show a new untracked file. `update` reads each
+discarded edit before it writes, because the edit is gone afterwards.
+
+**2026-10-14 decision: the command works on the repo that holds the
+current folder.** It finds the root with `git rev-parse --show-toplevel`, so
+it runs from any subfolder, and refuses outside a git repo. `check` runs the
+shipped check's own reader on that root, the same code `.ogham/check.mjs`
+runs, at the running version.
+
+**2026-10-14 decision, provisional: Node 22 is the floor.** The plan said
+Node 20, which is past its end of support, and `npm test`'s glob needs Node 21
+or later. `engines` says `>=22`, and a second CI job, `floor`, runs the tests
+on Node 22. It is a job of its own, not a matrix, because a matrix would
+rename `test`, the check `main`'s ruleset requires. `@types/node` stays at 20
+until the maintainer rules the floor; `docs/decisions/dependency-adoption.md`
+raises the two together.
+
 **Left for the lint wiring unit (plan U9).** The preflight that stops on an
 existing reasonless disable before anything is written; a lock marked
 pending, which the check must fail; whether the repo's ESLint should lint the

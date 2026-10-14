@@ -221,7 +221,7 @@ The preset registers ESLint's own rules under an `ogham/` prefix, so they never 
 | `ogham/no-restricted-syntax` | `og-no-hidden-inputs`, `og-no-module-state` | `new Date()` with no argument, `Date()` and `import.meta.env`; a top-level `let` or `var`, exported or not |
 | `ogham/disable-needs-reason` | `og-reasoned-exceptions` | A comment that turns lint off with no `-- reason`: a disable for a line, for a range or for the rest of the file, and a rule's setting changed in a comment. A disable that names no rule, or names this one, silences this rule too, and so does a setting comment that turns it off |
 
-The preset covers source files with a JavaScript or TypeScript extension. It leaves out test files (`*.test.*`, `*.spec.*`, and folders named `test`, `tests` or `__tests__`) and type declaration files. It also makes a disable comment that no longer silences anything an error.
+The preset covers source files with a JavaScript or TypeScript extension. It leaves out test files (`*.test.*`, `*.spec.*`, and folders named `test`, `tests` or `__tests__`) and type declaration files. It also makes a disable comment that no longer silences anything an error. The repo's check, `node .ogham/check.mjs`, scans the same files for a disable with no reason without running ESLint, so a disable that names no rule, which silences `ogham/disable-needs-reason` too, is still reported.
 
 **Lint is a tripwire for the common spellings, not a proof.** The reviewer checks what it cannot see:
 
