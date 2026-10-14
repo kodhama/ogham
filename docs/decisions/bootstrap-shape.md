@@ -110,15 +110,19 @@ claiming a clean rollback. Removing a file also removes each folder it leaves
 empty, so a rolled-back first `install` leaves no empty `.ogham/`.
 
 **2026-10-14 decision: ogham writes no file through a symbolic link.** A
-path to write or remove that is, or passes through, a symbolic link fails
-the command, which then rolls back. A committed link under `.ogham/` could
-otherwise make `update` overwrite a file outside the repo, or remove one
-past the clean-paths check.
+symbolic link inside `.ogham/` fails the command while it reads, before
+anything is written. A path to write or remove that is, or passes through, a
+symbolic link fails it while it writes, and it then rolls back. A committed
+link under `.ogham/` could otherwise make `update` overwrite a file outside
+the repo, make `remove` delete one past the clean-paths check, or leave a
+linked folder behind while `remove` reports success.
 
 **2026-10-14 decision: git never prompts, and gives up in time.** Every git
-call runs with `GIT_TERMINAL_PROMPT=0` and a five-minute limit, so a remote
-that asks for credentials, or a network that stalls, fails the command
-instead of holding it. When the tag lookup fails, the command prints git's
+call `src/apply.mjs` makes runs with `GIT_TERMINAL_PROMPT=0` and a
+five-minute limit, so a remote that asks for credentials, or a network that
+stalls, fails the command instead of holding it. The two other git calls,
+the root lookup in `src/cli.mjs` and the check's file listing, read only the
+local repo and never reach a remote. When the tag lookup fails, the command prints git's
 error, not "no tag".
 
 **2026-10-14 decision: what a command prints, and its exit code.** A

@@ -2,7 +2,7 @@
 // to decide, hands that to the pure plans in `plan.mjs`, and carries the plan
 // out all or nothing: it snapshots every path it will touch, writes, checks
 // what it wrote against the lock, writes the lock last, and on any failure
-// puts every path back as it was.
+// puts back each path it changed, naming any it could not.
 
 import { execFileSync } from "node:child_process";
 import {
@@ -75,6 +75,10 @@ const isCode = (error, code) =>
  */
 export const repoIo = (root) => {
   const at = (/** @type {string} */ path) => join(root, path);
+  const linkError = (/** @type {string} */ path) =>
+    new Error(
+      `${path} is a symbolic link, and ogham writes only real files inside the repo`,
+    );
 
   /**
    * Fails when the path, or a folder on the way to it, is a symbolic link:
@@ -86,11 +90,7 @@ export const repoIo = (root) => {
     parts.forEach((_, index) => {
       const prefix = parts.slice(0, index + 1).join("/");
       try {
-        if (lstatSync(at(prefix)).isSymbolicLink()) {
-          throw new Error(
-            `${prefix} is a symbolic link, and ogham writes only real files inside the repo`,
-          );
-        }
+        if (lstatSync(at(prefix)).isSymbolicLink()) throw linkError(prefix);
       } catch (error) {
         if (!isCode(error, "ENOENT")) throw error;
       }
@@ -98,6 +98,8 @@ export const repoIo = (root) => {
   };
 
   /**
+   * Every file under `dir`. Fails on a symbolic link inside it, which the
+   * command would otherwise leave out of what it reads, writes and removes.
    * @param {string} dir
    * @returns {readonly string[]}
    */
@@ -106,6 +108,7 @@ export const repoIo = (root) => {
       return readdirSync(at(dir), { withFileTypes: true }).flatMap(
         /** @returns {readonly string[]} */ (entry) => {
           const path = `${dir}/${entry.name}`;
+          if (entry.isSymbolicLink()) throw linkError(path);
           if (entry.isDirectory()) return list(path);
           return entry.isFile() ? [path] : [];
         },

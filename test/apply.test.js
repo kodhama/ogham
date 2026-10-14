@@ -9,6 +9,7 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
+  renameSync,
   rmSync,
   symlinkSync,
   unlinkSync,
@@ -568,21 +569,39 @@ test("a rollback restores an uncommitted local edit that update --force overwrot
   assert.equal(status(root), " M .ogham/coding/rubric.md\n");
 });
 
-test("update writes nothing through a symbolic link under .ogham/, and rolls back", (t) => {
+test("update writes nothing through .ogham/ when it is a symbolic link, and rolls back", (t) => {
   const root = adoptedRepo(t);
   const outside = mkdtempSync(join(tmpdir(), "ogham-outside-"));
   t.after(() => rmSync(outside, { recursive: true, force: true }));
-  const victim = join(outside, "victim.txt");
-  writeFileSync(victim, "not ogham's\n");
-  unlinkSync(join(root, ".ogham/coding/rubric.md"));
-  symlinkSync(victim, join(root, ".ogham/coding/rubric.md"));
-  commitAll(root, "link the rubric out of the repo");
+  renameSync(join(root, ".ogham"), join(outside, "ogham"));
+  symlinkSync(join(outside, "ogham"), join(root, ".ogham"));
+  commitAll(root, "link .ogham out of the repo");
+  const victim = join(outside, "ogham/check.mjs");
+  const before = readFileSync(victim, "utf8");
 
   const outcome = update(ioFor(root), shippedAt("9.9.9"), true);
 
   assert.equal(outcome.code, 1);
-  assert.match(outcome.lines.join("\n"), /is a symbolic link/);
-  assert.equal(readFileSync(victim, "utf8"), "not ogham's\n");
+  assert.match(outcome.lines.join("\n"), /\.ogham is a symbolic link/);
+  assert.match(outcome.lines.join("\n"), /put every path it touched back/);
+  assert.equal(readFileSync(victim, "utf8"), before);
+  assert.equal(status(root), "");
+});
+
+test("remove stops on a symbolic link to a folder under .ogham/, before writing anything", (t) => {
+  const root = adoptedRepo(t);
+  const outside = mkdtempSync(join(tmpdir(), "ogham-outside-"));
+  t.after(() => rmSync(outside, { recursive: true, force: true }));
+  renameSync(join(root, ".ogham/coding"), join(outside, "coding"));
+  symlinkSync(join(outside, "coding"), join(root, ".ogham/coding"));
+  commitAll(root, "link the coding folder out of the repo");
+  const rubric = readFileSync(join(outside, "coding/rubric.md"), "utf8");
+
+  assert.throws(
+    () => remove(ioFor(root)),
+    /\.ogham\/coding is a symbolic link/,
+  );
+  assert.equal(readFileSync(join(outside, "coding/rubric.md"), "utf8"), rubric);
   assert.equal(status(root), "");
 });
 
