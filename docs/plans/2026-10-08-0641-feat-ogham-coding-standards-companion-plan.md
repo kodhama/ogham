@@ -389,7 +389,7 @@ An unrecognised lint-config shape changes one step. `apply` vendors everything e
 
 ### Assumptions
 
-- Machines and cloud sessions that run the bootstrap have Node 20 or later, git, and network access to GitHub (KTD4). A cloud environment with a network allowlist that blocks GitHub cannot run `install`; the repo, once adopted, needs nothing, since `check.mjs` is vendored.
+- Machines and cloud sessions that run the bootstrap have Node 22 or later (raised from 20 in U6), git, and network access to GitHub (KTD4). A cloud environment with a network allowlist that blocks GitHub cannot run `install`; the repo, once adopted, needs nothing, since `check.mjs` is vendored.
 - The repo's ESLint version supports bulk suppressions (KTD9). U9 confirms the version floor and stops with a clear message below it.
 - Claude Code resolves the `@` import of `ogham.local.md` inside `AGENTS.md` when `CLAUDE.md` imports `AGENTS.md` (KTD2). U10 checks it in a real session.
 

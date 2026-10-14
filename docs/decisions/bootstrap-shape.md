@@ -141,13 +141,13 @@ it runs from any subfolder, and refuses outside a git repo. `check` runs the
 shipped check's own reader on that root, the same code `.ogham/check.mjs`
 runs, at the running version.
 
-**2026-10-14 decision, provisional: Node 22 is the floor.** The plan said
-Node 20, which is past its end of support, and `npm test`'s glob needs Node 21
-or later. `engines` says `>=22`, and a second CI job, `floor`, runs the tests
-on Node 22. It is a job of its own, not a matrix, because a matrix would
-rename `test`, the check `main`'s ruleset requires. `@types/node` stays at 20
-until the maintainer rules the floor; `docs/decisions/dependency-adoption.md`
-raises the two together.
+**2026-10-14 decision: Node 22 is the floor** (the maintainer's ruling, on
+this PR). The plan said Node 20, which is past its end of support, and
+`npm test`'s glob needs Node 21 or later. `engines` says `>=22`, and a
+second CI job, `floor`, runs the tests on Node 22. It is a job of its own,
+not a matrix, because a matrix would rename `test`, the check `main`'s
+ruleset requires. `@types/node` moves to 22 with it
+(`docs/decisions/dependency-adoption.md`).
 
 **Left for the lint wiring unit (plan U9).** The preflight that stops on an
 existing reasonless disable before anything is written; a lock marked
