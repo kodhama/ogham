@@ -227,3 +227,17 @@ wrote, since every write and the lock are complete by then.
 **2026-10-14 addition.** The local edit `update` shows before it stops, or
 before `--force` overwrites it, is also `git diff --no-ext-diff`, for the
 same reason. Found by the Codex GitHub reviewer on this PR.
+
+**2026-10-15 correction to the ignore check.** An owned file whose text
+already matches is not written, but the lock still claims it. So the check
+also asks git about every owned file the lock will claim, on the same terms:
+each new one, and each one git reports as changed, untracked or ignored.
+Before, an update that newly owned a path the repo already held, untracked,
+ignored and identical, wrote a lock claiming a file no commit carries, and a
+fresh clone failed `check`. Now it lists that path and writes nothing. Found
+by the Codex GitHub reviewer on this PR.
+
+**2026-10-15 addition to the diffs.** Both printed diffs, and the advice
+for a diff git cannot show, also pass `--no-textconv`, so a text conversion
+the repo's attributes select neither changes what is shown nor breaks it.
+Found by the Codex GitHub reviewer on this PR.

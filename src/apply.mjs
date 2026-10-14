@@ -310,7 +310,14 @@ const showEdit = (io, lock, { path, state }) => {
       `${path} was edited, and its pinned text is in no commit of this repo, so the edit cannot be shown.`,
     ];
   }
-  const diff = io.git(["diff", "--no-ext-diff", base, "--", path]);
+  const diff = io.git([
+    "diff",
+    "--no-ext-diff",
+    "--no-textconv",
+    base,
+    "--",
+    path,
+  ]);
   return [
     `${path} was edited, against ${base.slice(0, 12)}:`,
     ...(diff.ok ? diff.out : diff.out.trim()).split("\n").filter(Boolean),
@@ -457,16 +464,25 @@ const carryOut = (io, facts, plan, command) => {
   }
 
   const { adoption } = plan;
-  // Of the files the plan writes, git is asked about each new one and each
-  // one git reports as changed, untracked or ignored, which reaches here only
-  // as an owned file `update --force` writes back, edited or deleted. A
-  // tracked file git reports unchanged is left out: git never ignores one.
-  const written =
-    adoption === undefined ? [] : [...plan.write.keys(), LOCK_PATH];
-  const changed = uncommitted(written, facts.dirty);
+  // Of the files the plan writes and the owned files the lock will claim,
+  // git is asked about each new one and each one git reports as changed,
+  // untracked or ignored. An owned file whose text already matches is not
+  // written but is still claimed, so it is asked about too. A tracked file
+  // git reports unchanged is left out: git never ignores one.
+  const claimed =
+    adoption === undefined
+      ? []
+      : [
+          ...new Set([
+            ...plan.write.keys(),
+            ...adoption.owned.keys(),
+            LOCK_PATH,
+          ]),
+        ];
+  const changed = uncommitted(claimed, facts.dirty);
   const { ignored, failure } = ignoredPaths(
     io,
-    written.filter(
+    claimed.filter(
       (path) => !facts.contents.has(path) || changed.includes(path),
     ),
   );
@@ -535,7 +551,7 @@ const carryOut = (io, facts, plan, command) => {
   );
   const diff =
     existed.length > 0
-      ? io.git(["diff", "--no-ext-diff", "--", ...existed])
+      ? io.git(["diff", "--no-ext-diff", "--no-textconv", "--", ...existed])
       : undefined;
   return {
     code: 0,
@@ -544,7 +560,7 @@ const carryOut = (io, facts, plan, command) => {
       diff:
         diff === undefined || diff.ok
           ? (diff?.out ?? "")
-          : `Could not show git's diff: ${diff.out.trim().replace(/\s+/g, " ")}. Run git diff --no-ext-diff to see what changed.`,
+          : `Could not show git's diff: ${diff.out.trim().replace(/\s+/g, " ")}. Run git diff --no-ext-diff --no-textconv to see what changed.`,
       before,
       lock,
       removed: plan.remove,

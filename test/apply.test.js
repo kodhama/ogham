@@ -316,6 +316,32 @@ test("update --force refuses to overwrite an owned file git has been told to ign
   assert.equal(lockOf(root).version, VERSION);
 });
 
+test("update refuses a newly owned path the repo already holds, identical but ignored", (t) => {
+  const root = adoptedRepo(t);
+  writeFiles(root, { ".gitignore": ".ogham/coding/notes/added.md\n" });
+  commitAll(root, "ignore a file ogham will own");
+  writeFiles(root, {
+    ".ogham/coding/notes/added.md": "A file the newer version adds.\n",
+  });
+  const newer = shippedAt("9.9.9");
+  const withAdded = {
+    ...newer,
+    files: new Map([
+      ...newer.files,
+      ["coding/notes/added.md", "A file the newer version adds.\n"],
+    ]),
+  };
+
+  const outcome = update(ioFor(root), withAdded, false);
+
+  assert.equal(outcome.code, 1, outcome.lines.join("\n"));
+  assert.deepEqual(
+    outcome.lines.filter((line) => line.startsWith("  ")),
+    ["  .ogham/coding/notes/added.md"],
+  );
+  assert.equal(lockOf(root).version, VERSION);
+});
+
 test("install refuses on a failed ignore lookup instead of reading it as nothing ignored", (t) => {
   const root = fixtureRepo(t, TS_REPO);
   const io = ioFor(root);
@@ -469,7 +495,7 @@ test("update says so when git cannot show its diff, and keeps what it wrote", (t
   assert.equal(outcome.code, 0, outcome.lines.join("\n"));
   assert.ok(
     outcome.lines.includes(
-      "Could not show git's diff: fatal: external diff died. Run git diff --no-ext-diff to see what changed.",
+      "Could not show git's diff: fatal: external diff died. Run git diff --no-ext-diff --no-textconv to see what changed.",
     ),
   );
   assert.equal(lockOf(root).version, "9.9.9");
@@ -503,6 +529,23 @@ test("update shows a local edit with git's own diff when the repo sets an extern
   assert.equal(outcome.code, 1);
   assert.match(outcome.lines.join("\n"), /\+A local addition\./);
   assert.equal(read(root, ".ogham/coding/rubric.md"), edited);
+});
+
+test("update shows git's own diffs when the repo's attributes select a failing text conversion", (t) => {
+  const root = adoptedRepo(t, { ".gitattributes": "*.md diff=broken\n" });
+  git(root, ["config", "diff.broken.textconv", "false"]);
+  const edited = `${read(root, ".ogham/coding/rubric.md")}A local addition.\n`;
+  writeFiles(root, { ".ogham/coding/rubric.md": edited });
+
+  const stopped = update(ioFor(root), shippedAt("9.9.9"), false);
+
+  assert.equal(stopped.code, 1);
+  assert.match(stopped.lines.join("\n"), /\+A local addition\./);
+
+  const forced = update(ioFor(root), shippedAt("9.9.9"), true);
+
+  assert.equal(forced.code, 0, forced.lines.join("\n"));
+  assert.match(forced.lines.join("\n"), /\+A line the newer version adds\./);
 });
 
 test("a file that differs only in CRLF line endings is not a local edit", (t) => {
