@@ -457,9 +457,10 @@ const carryOut = (io, facts, plan, command) => {
   }
 
   const { adoption } = plan;
-  // git never ignores a tracked file it reports unchanged, so only those are
-  // left out; every file the command creates, changes under git or overwrites
-  // with --force is asked about.
+  // Of the files the plan writes, git is asked about each new one and each
+  // one git reports as changed, untracked or ignored, which reaches here only
+  // when `update --force` overwrites it. A tracked file git reports unchanged
+  // is left out: git never ignores one.
   const written =
     adoption === undefined ? [] : [...plan.write.keys(), LOCK_PATH];
   const changed = uncommitted(written, facts.dirty);

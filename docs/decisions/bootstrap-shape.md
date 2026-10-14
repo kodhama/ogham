@@ -195,3 +195,12 @@ command also asks about each existing file git reports as changed, untracked
 or ignored. Only a tracked file git reports unchanged is left out, since git
 never ignores one. A forced update over an owned file the repo has since
 told git to ignore now refuses and writes nothing.
+
+**2026-10-14, the ignore check restated.** This replaces the two entries
+above on what the check asks about. The uncommitted-changes guard runs
+first: a file it refuses never reaches the check. Of the files a command
+then writes, git is asked about each new file, and about each file git
+reports as changed, untracked or ignored. Such a file gets past the guard
+only when `update --force` overwrites an edited owned file. A tracked file
+git reports unchanged is not asked about, since git never ignores one. When
+git ignores any file asked about, the command lists it and writes nothing.
