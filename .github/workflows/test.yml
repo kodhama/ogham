@@ -57,3 +57,21 @@ jobs:
           else
             /tmp/gitleaks git . --config .gitleaks.toml --redact --no-banner --log-opts "${SECRETS_BASE}..HEAD"
           fi
+
+  # The tests again on the oldest Node that package.json's `engines` allows,
+  # as a job of its own: a matrix would rename `test`, the check main's
+  # ruleset requires.
+  floor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - run: npm ci
+
+      - name: Tests
+        run: npm test
