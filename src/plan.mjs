@@ -71,7 +71,7 @@ const UNREADABLE = `${LOCK_PATH} is not a lock this version of ogham reads. Rest
  * @param {readonly string[]} touched
  * @param {readonly string[]} dirty
  */
-const uncommitted = (touched, dirty) =>
+export const uncommitted = (touched, dirty) =>
   touched.filter((path) =>
     dirty.some(
       (changed) =>

@@ -187,3 +187,11 @@ never ignores a tracked file, and an untracked or ignored one is already
 refused as an uncommitted change. If git cannot answer, as when `.ogham/` is
 a symbolic link, the command prints git's error and writes nothing. Found by
 the Codex GitHub reviewer on this PR.
+
+**2026-10-14 correction to the entry above.** "An untracked or ignored one
+is already refused as an uncommitted change" is false for `update --force`,
+which overwrites an edited owned file whatever git says of it. So the
+command also asks about each existing file git reports as changed, untracked
+or ignored. Only a tracked file git reports unchanged is left out, since git
+never ignores one. A forced update over an owned file the repo has since
+told git to ignore now refuses and writes nothing.

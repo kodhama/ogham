@@ -25,7 +25,13 @@ import {
 } from "../standard/check.mjs";
 import { nulList, statusPaths, tagCommit } from "./git-text.mjs";
 import { buildLock, lockText } from "./lock.mjs";
-import { OUTSIDE, planInstall, planRemove, planUpdate } from "./plan.mjs";
+import {
+  OUTSIDE,
+  planInstall,
+  planRemove,
+  planUpdate,
+  uncommitted,
+} from "./plan.mjs";
 import { OWNED_ROOT } from "./vendor.mjs";
 
 /** @typedef {import("../standard/check.mjs").Drift} Drift */
@@ -451,15 +457,17 @@ const carryOut = (io, facts, plan, command) => {
   }
 
   const { adoption } = plan;
-  // A file that exists is tracked, which git never ignores, or is already
-  // refused as uncommitted; only the files the command creates are asked about.
+  // git never ignores a tracked file it reports unchanged, so only those are
+  // left out; every file the command creates, changes under git or overwrites
+  // with --force is asked about.
+  const written =
+    adoption === undefined ? [] : [...plan.write.keys(), LOCK_PATH];
+  const changed = uncommitted(written, facts.dirty);
   const { ignored, failure } = ignoredPaths(
     io,
-    adoption === undefined
-      ? []
-      : [...plan.write.keys(), LOCK_PATH].filter(
-          (path) => !facts.contents.has(path),
-        ),
+    written.filter(
+      (path) => !facts.contents.has(path) || changed.includes(path),
+    ),
   );
   if (failure !== undefined) {
     return {

@@ -33,6 +33,7 @@ import { install, readSource, remove, repoIo, update } from "../src/apply.mjs";
 import {
   commitAll,
   fixtureRepo,
+  git,
   status,
   writeFiles,
 } from "./helpers/fixture-repo.js";
@@ -267,15 +268,19 @@ test("install refuses and writes nothing when git ignores .ogham/", (t) => {
   const root = fixtureRepo(t, { ...TS_REPO, ".gitignore": ".ogham/\n" });
 
   const outcome = install(ioFor(root), shipped);
+  const adopted = adoptedRepo(t);
 
   assert.equal(outcome.code, 1);
   const text = outcome.lines.join("\n");
   assert.match(text, /^git ignores these paths/);
-  assert.match(
-    text,
-    new RegExp(`^  ${LOCK_PATH.replaceAll(".", "\\.")}$`, "m"),
-  );
   assert.match(text, /Nothing was written\.$/);
+  assert.deepEqual(
+    outcome.lines
+      .filter((line) => line.startsWith("  "))
+      .map((line) => line.trim())
+      .sort(),
+    filesUnder(adopted, ".ogham"),
+  );
   assert.equal(existsSync(join(root, ".ogham")), false);
   assert.equal(status(root), "");
 });
@@ -291,6 +296,24 @@ test("install names only the paths git ignores, and still writes nothing", (t) =
     ["  .ogham/check.mjs"],
   );
   assert.equal(existsSync(join(root, ".ogham")), false);
+});
+
+test("update --force refuses to overwrite an owned file git has been told to ignore", (t) => {
+  const root = adoptedRepo(t);
+  git(root, ["rm", "-q", "--cached", ".ogham/coding/core.md"]);
+  writeFiles(root, { ".gitignore": ".ogham/coding/core.md\n" });
+  commitAll(root, "stop tracking the core");
+  writeFiles(root, { ".ogham/coding/core.md": "A local copy.\n" });
+
+  const outcome = update(ioFor(root), shippedAt("9.9.9"), true);
+
+  assert.equal(outcome.code, 1);
+  assert.deepEqual(
+    outcome.lines.filter((line) => line.startsWith("  ")),
+    ["  .ogham/coding/core.md"],
+  );
+  assert.equal(read(root, ".ogham/coding/core.md"), "A local copy.\n");
+  assert.equal(lockOf(root).version, VERSION);
 });
 
 test("install refuses on a failed ignore lookup instead of reading it as nothing ignored", (t) => {
