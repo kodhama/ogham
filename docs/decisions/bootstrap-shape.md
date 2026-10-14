@@ -163,9 +163,11 @@ it (`docs/decisions/dependency-adoption.md`).
 - The rollback (2026-10-14, "a write is checked before the lock is
   written") writes back each touched path whose text changed, not every
   touched path, and names each one it could not put back. A path that was
-  absent before still has its empty folders pruned, best effort, so a
-  rolled-back first `install` leaves no empty `.ogham/` even when a write
-  failed after making its folder.
+  absent before still has its empty folders pruned, best effort, including
+  after a write that failed once it had made its folder. A folder that will
+  not go is left without being named: git does not see an empty folder, and
+  a later `install` writes into it. Pruning also takes an empty folder that
+  was there before the command ran.
 - A command that throws, rather than refusing, prints `ogham stopped:` and
   the error on one line, and exits 1.
 
