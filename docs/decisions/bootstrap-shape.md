@@ -223,3 +223,7 @@ says to run `git diff --no-ext-diff`. "The writes passed the check before
 the lock was written" is true of the owned files only: the check reads them,
 not the line added to `.prettierignore`. The command still keeps what it
 wrote, since every write and the lock are complete by then.
+
+**2026-10-14 addition.** The local edit `update` shows before it stops, or
+before `--force` overwrites it, is also `git diff --no-ext-diff`, for the
+same reason. Found by the Codex GitHub reviewer on this PR.

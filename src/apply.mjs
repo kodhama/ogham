@@ -310,7 +310,7 @@ const showEdit = (io, lock, { path, state }) => {
       `${path} was edited, and its pinned text is in no commit of this repo, so the edit cannot be shown.`,
     ];
   }
-  const diff = io.git(["diff", base, "--", path]);
+  const diff = io.git(["diff", "--no-ext-diff", base, "--", path]);
   return [
     `${path} was edited, against ${base.slice(0, 12)}:`,
     ...(diff.ok ? diff.out : diff.out.trim()).split("\n").filter(Boolean),

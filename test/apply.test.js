@@ -492,6 +492,19 @@ test("update shows git's own diff when the repo sets an external diff program", 
   );
 });
 
+test("update shows a local edit with git's own diff when the repo sets an external diff program", (t) => {
+  const root = adoptedRepo(t);
+  git(root, ["config", "diff.external", "false"]);
+  const edited = `${read(root, ".ogham/coding/rubric.md")}A local addition.\n`;
+  writeFiles(root, { ".ogham/coding/rubric.md": edited });
+
+  const outcome = update(ioFor(root), shippedAt("9.9.9"), false);
+
+  assert.equal(outcome.code, 1);
+  assert.match(outcome.lines.join("\n"), /\+A local addition\./);
+  assert.equal(read(root, ".ogham/coding/rubric.md"), edited);
+});
+
 test("a file that differs only in CRLF line endings is not a local edit", (t) => {
   const root = adoptedRepo(t);
   writeFiles(root, {
