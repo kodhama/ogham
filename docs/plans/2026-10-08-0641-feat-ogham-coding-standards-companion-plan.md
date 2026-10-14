@@ -607,6 +607,7 @@ An unrecognised lint-config shape changes one step. `apply` vendors everything e
 - A refusal after writing during a first `install` deletes the files it created (`.ogham/`, `ogham.local.md`, a new `AGENTS.md` or `CLAUDE.md`), leaving `git status` clean.
 - `check` and `.ogham/check.mjs` both exit zero on a clean adoption. Both exit non-zero on an edited owned file, and on a lock whose version differs from the version built into the vendored `check.mjs`.
 - `install` when a path it would touch has uncommitted changes refuses and writes nothing.
+- `install` when git ignores a file it would create refuses, names the file and writes nothing.
 - `remove` deletes `.ogham/` (lock and `check.mjs` included), keeps `ogham.local.md` byte-identical, touches only the paths the lock lists, and refuses on uncommitted changes as `install` does. A failure partway restores every touched path.
 - `install` on a repo that has a lock writes nothing, reports "already adopted", and exits zero.
 - The lock lists every file `install` created and every line it inserted outside `.ogham/`.

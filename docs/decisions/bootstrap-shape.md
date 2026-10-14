@@ -175,3 +175,15 @@ it (`docs/decisions/dependency-adoption.md`).
 existing reasonless disable before anything is written; a lock marked
 pending, which the check must fail; whether the repo's ESLint should lint the
 vendored `.mjs` files under `.ogham/`; and the generated-file limit above.
+
+**2026-10-14 decision: `install` and `update` refuse a file git would
+ignore.** Before writing, the command asks `git check-ignore` about each file
+it would create. When git ignores one, through `.gitignore`,
+`.git/info/exclude` or the global excludes file, the command lists those
+paths, says to stop ignoring them, and writes nothing. Otherwise the
+standard would be written but left out of every commit, so no other machine
+or session would get it. A file that already exists is not asked about: git
+never ignores a tracked file, and an untracked or ignored one is already
+refused as an uncommitted change. If git cannot answer, as when `.ogham/` is
+a symbolic link, the command prints git's error and writes nothing. Found by
+the Codex GitHub reviewer on this PR.

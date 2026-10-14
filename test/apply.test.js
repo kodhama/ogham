@@ -263,6 +263,58 @@ test("install refuses and writes nothing when a path it would touch has uncommit
   assert.equal(status(root), " M .prettierignore\n");
 });
 
+test("install refuses and writes nothing when git ignores .ogham/", (t) => {
+  const root = fixtureRepo(t, { ...TS_REPO, ".gitignore": ".ogham/\n" });
+
+  const outcome = install(ioFor(root), shipped);
+
+  assert.equal(outcome.code, 1);
+  const text = outcome.lines.join("\n");
+  assert.match(text, /^git ignores these paths/);
+  assert.match(
+    text,
+    new RegExp(`^  ${LOCK_PATH.replaceAll(".", "\\.")}$`, "m"),
+  );
+  assert.match(text, /Nothing was written\.$/);
+  assert.equal(existsSync(join(root, ".ogham")), false);
+  assert.equal(status(root), "");
+});
+
+test("install names only the paths git ignores, and still writes nothing", (t) => {
+  const root = fixtureRepo(t, { ...TS_REPO, ".gitignore": "check.mjs\n" });
+
+  const outcome = install(ioFor(root), shipped);
+
+  assert.equal(outcome.code, 1);
+  assert.deepEqual(
+    outcome.lines.filter((line) => line.startsWith("  ")),
+    ["  .ogham/check.mjs"],
+  );
+  assert.equal(existsSync(join(root, ".ogham")), false);
+});
+
+test("install refuses on a failed ignore lookup instead of reading it as nothing ignored", (t) => {
+  const root = fixtureRepo(t, TS_REPO);
+  const io = ioFor(root);
+  /** @type {Io} */
+  const broken = {
+    ...io,
+    git: (args) =>
+      args[0] === "check-ignore"
+        ? { ok: false, out: "fatal: bad pattern\n", code: 128 }
+        : io.git(args),
+  };
+
+  const outcome = install(broken, shipped);
+
+  assert.equal(outcome.code, 1);
+  assert.match(
+    outcome.lines.join("\n"),
+    /which paths it ignores: fatal: bad pattern\. Nothing was written\./,
+  );
+  assert.equal(status(root), "");
+});
+
 test("install refuses before writing when the version's tag is not found", (t) => {
   const root = fixtureRepo(t, TS_REPO);
 

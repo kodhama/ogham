@@ -42,8 +42,8 @@ import { OWNED_ROOT } from "./vendor.mjs";
  *   readonly write: (path: string, text: string) => void,
  *   readonly remove: (path: string) => void,
  *   readonly list: (dir: string) => readonly string[],
- *   readonly git: (args: readonly string[]) => { readonly ok: boolean, readonly out: string },
- * }} Io a file's text, or `undefined` when there is none; write a file, making its folders; remove a file, then each parent folder it leaves empty; every file under a folder, at any depth; run git in the repo, with what it printed to standard output, or to standard error when it failed
+ *   readonly git: (args: readonly string[]) => { readonly ok: boolean, readonly out: string, readonly code?: number | undefined },
+ * }} Io a file's text, or `undefined` when there is none; write a file, making its folders; remove a file, then each parent folder it leaves empty; every file under a folder, at any depth; run git in the repo, with what it printed to standard output, or to standard error when it failed, and the exit code it failed with
  */
 
 /**
@@ -169,9 +169,10 @@ export const repoIo = (root) => {
           }),
         };
       } catch (error) {
-        const failed = /** @type {{ stderr?: unknown, message: string }} */ (
-          error
-        );
+        const failed =
+          /** @type {{ stderr?: unknown, status?: unknown, message: string }} */ (
+            error
+          );
         if (isCode(error, "ETIMEDOUT")) {
           return {
             ok: false,
@@ -184,6 +185,7 @@ export const repoIo = (root) => {
             typeof failed.stderr === "string" && failed.stderr !== ""
               ? failed.stderr
               : failed.message,
+          code: typeof failed.status === "number" ? failed.status : undefined,
         };
       }
     },
@@ -199,6 +201,25 @@ const gitOut = (io, args) => {
   const { ok, out } = io.git(args);
   if (!ok) throw new Error(`git ${args.join(" ")} failed: ${out.trim()}`);
   return out;
+};
+
+/**
+ * Effect: the paths among `paths` that git ignores, which a commit would
+ * leave out, or git's error when it could not say.
+ * @param {Io} io
+ * @param {readonly string[]} paths
+ * @returns {{ ignored: readonly string[], failure: string | undefined }}
+ */
+const ignoredPaths = (io, paths) => {
+  if (paths.length === 0) return { ignored: [], failure: undefined };
+  const { ok, out, code } = io.git(["check-ignore", "--", ...paths]);
+  // check-ignore exits 1 when it ignores none of them.
+  if (!ok && code === 1) return { ignored: [], failure: undefined };
+  if (!ok) return { ignored: [], failure: out.trim() };
+  return {
+    ignored: out.split("\n").filter((line) => line !== ""),
+    failure: undefined,
+  };
 };
 
 /**
@@ -430,6 +451,34 @@ const carryOut = (io, facts, plan, command) => {
   }
 
   const { adoption } = plan;
+  // A file that exists is tracked, which git never ignores, or is already
+  // refused as uncommitted; only the files the command creates are asked about.
+  const { ignored, failure } = ignoredPaths(
+    io,
+    adoption === undefined
+      ? []
+      : [...plan.write.keys(), LOCK_PATH].filter(
+          (path) => !facts.contents.has(path),
+        ),
+  );
+  if (failure !== undefined) {
+    return {
+      code: 1,
+      lines: [
+        `Could not ask git which paths it ignores: ${failure}. Nothing was written.`,
+      ],
+    };
+  }
+  if (ignored.length > 0) {
+    return {
+      code: 1,
+      lines: [
+        "git ignores these paths, so a commit would leave them out:",
+        ...ignored.map((path) => `  ${path}`),
+        `Stop ignoring them (in .gitignore, .git/info/exclude or the global excludes file), then run ${command} again. Nothing was written.`,
+      ],
+    };
+  }
   const resolved =
     adoption === undefined || adoption.commit !== undefined
       ? { commit: adoption?.commit, failure: undefined }
