@@ -389,7 +389,7 @@ An unrecognised lint-config shape changes one step. `apply` vendors everything e
 
 ### Assumptions
 
-- Machines and cloud sessions that run the bootstrap have Node 20 or later, git, and network access to GitHub (KTD4). A cloud environment with a network allowlist that blocks GitHub cannot run `install`; the repo, once adopted, needs nothing, since `check.mjs` is vendored.
+- Machines and cloud sessions that run the bootstrap have Node 22 or later (raised from 20 in U6), git, and network access to GitHub (KTD4). A cloud environment with a network allowlist that blocks GitHub cannot run `install`; the repo, once adopted, needs nothing, since `check.mjs` is vendored.
 - The repo's ESLint version supports bulk suppressions (KTD9). U9 confirms the version floor and stops with a clear message below it.
 - Claude Code resolves the `@` import of `ogham.local.md` inside `AGENTS.md` when `CLAUDE.md` imports `AGENTS.md` (KTD2). U10 checks it in a real session.
 
@@ -546,7 +546,7 @@ An unrecognised lint-config shape changes one step. `apply` vendors everything e
 **Files:**
 - `standard/coding/eslint/index.mjs`
 - `standard/coding/eslint/disable-needs-reason.mjs`
-- `src/scan-disables.mjs` (shared with `check.mjs`)
+- `standard/coding/eslint/scan-disables.mjs` (shared with `check.mjs`; moved from `src/` in U6, see `docs/decisions/bootstrap-shape.md`)
 - `test/eslint-preset.test.js`, `test/scan-disables.test.js`
 - `test/fixtures/lint/`
 
@@ -582,17 +582,18 @@ An unrecognised lint-config shape changes one step. `apply` vendors everything e
 **Dependencies:** U2, U3.
 
 **Files:**
-- `bin/ogham.mjs`
-- `src/vendor.mjs`, `src/lock.mjs`, `src/detect.mjs`, `src/check.mjs`, `src/apply.mjs`
-- `test/vendor.test.js`, `test/lock.test.js`, `test/check.test.js`, `test/apply.test.js`
-- `test/fixtures/repos/`
+- `bin/ogham.mjs`, `src/cli.mjs`
+- `standard/check.mjs` (vendored as it is: `.ogham/` is a file-for-file copy of `standard/`), `standard/coding/eslint/scope.mjs`
+- `src/vendor.mjs`, `src/lock.mjs`, `src/detect.mjs`, `src/git-text.mjs`, `src/plan.mjs`, `src/apply.mjs`
+- `test/vendor.test.js`, `test/lock.test.js`, `test/check.test.js`, `test/plan.test.js`, `test/apply.test.js`, `test/cli.test.js`, `test/own-source.test.js`
+- `test/helpers/fixture-repo.js`: repos are built in a temporary folder, not committed under `test/fixtures/repos/`
 
 **Approach:**
 1. Keep decisions pure (what to write, what changed, what fails) and keep filesystem and git access in a thin shell, the standard ogham ships.
 2. Resolve the source by tag, and record the commit.
 3. Hash LF-normalised content.
-4. Apply, verify, and roll back from git on refusal (KTD4).
-5. Vendor `src/check.mjs` as `.ogham/check.mjs`.
+4. Apply, verify, and roll back on refusal (KTD4), from a snapshot of every touched path rather than from git, so an uncommitted edit that `update --force` overwrites is restored too (`docs/decisions/bootstrap-shape.md`).
+5. Vendor `standard/check.mjs` as `.ogham/check.mjs`.
 6. Add the `.prettierignore` entry and record the language choice (KTD5, KTD13).
 
 **Execution note:** test-first; build each pure decision function before its shell.
@@ -606,6 +607,7 @@ An unrecognised lint-config shape changes one step. `apply` vendors everything e
 - A refusal after writing during a first `install` deletes the files it created (`.ogham/`, `ogham.local.md`, a new `AGENTS.md` or `CLAUDE.md`), leaving `git status` clean.
 - `check` and `.ogham/check.mjs` both exit zero on a clean adoption. Both exit non-zero on an edited owned file, and on a lock whose version differs from the version built into the vendored `check.mjs`.
 - `install` when a path it would touch has uncommitted changes refuses and writes nothing.
+- `install` when git ignores a file it would create refuses, names the file and writes nothing.
 - `remove` deletes `.ogham/` (lock and `check.mjs` included), keeps `ogham.local.md` byte-identical, touches only the paths the lock lists, and refuses on uncommitted changes as `install` does. A failure partway restores every touched path.
 - `install` on a repo that has a lock writes nothing, reports "already adopted", and exits zero.
 - The lock lists every file `install` created and every line it inserted outside `.ogham/`.

@@ -45,3 +45,7 @@ resolve `node:test`, `node:fs` and the rest without it. It is held at major
 20 on purpose. The plan assumes Node 20 or later wherever the bootstrap runs,
 so typing against 20 makes the typecheck reject an API that a Node 20 machine
 lacks. Raise it only together with that floor.
+
+**2026-10-14 update: @types/node moves to `^22.20.5`**, with the floor. The
+maintainer ruled Node 22 the floor (see `bootstrap-shape.md`), so the
+typecheck now rejects an API a Node 22 machine lacks.

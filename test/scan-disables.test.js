@@ -12,7 +12,7 @@ import tseslint from "typescript-eslint";
 
 import preset from "../standard/coding/eslint/index.mjs";
 import { lintOff } from "../standard/coding/eslint/disable-needs-reason.mjs";
-import { comments, scanDisables } from "../src/scan-disables.mjs";
+import { comments, scanDisables } from "../standard/coding/eslint/scan-disables.mjs";
 
 const linter = new Linter({ configType: "flat" });
 
@@ -389,4 +389,15 @@ test("a reason is the text after the first dashes set apart by white space, and 
     assert.deepEqual(linter.verify(code, config, "src/example.js"), [], code);
     assert.equal(comment && lintOff(comment)?.reason, reason, code);
   }
+});
+
+test("a byte-order mark at the start of a file does not shift the first line's column", () => {
+  assert.deepEqual(scanDisables("﻿/* eslint-disable */\nf();\n"), [
+    { line: 1, column: 1, label: "eslint-disable" },
+  ]);
+  // After the mark, a `#!` line is still stepped over.
+  assert.deepEqual(
+    scanDisables("﻿#!/usr/bin/env node // eslint-disable-line\nf();\n"),
+    [],
+  );
 });

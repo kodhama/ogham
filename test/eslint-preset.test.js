@@ -16,6 +16,7 @@ import preset, {
   BUILTIN_RULES,
   aliased,
 } from "../standard/coding/eslint/index.mjs";
+import { FILES, IGNORES, inScope } from "../standard/coding/eslint/scope.mjs";
 import {
   OG_ID,
   parseRules,
@@ -483,7 +484,7 @@ test("ogham's own lint config applies the preset to its source and not to its te
 
   for (const file of [
     "standard/coding/eslint/index.mjs",
-    "src/scan-disables.mjs",
+    "standard/coding/eslint/scan-disables.mjs",
   ]) {
     const rules = await rulesFor(file);
     for (const rule of Object.keys(preset[0]?.rules ?? {})) {
@@ -492,4 +493,57 @@ test("ogham's own lint config applies the preset to its source and not to its te
   }
   const onTests = await rulesFor("test/eslint-preset.test.js");
   assert.equal(onTests["ogham/no-param-reassign"], undefined);
+});
+
+test("the check's file scope is the preset's: both say yes or no to the same paths", async () => {
+  const engine = new ESLint({ overrideConfigFile: true, overrideConfig: preset });
+
+  for (const filePath of [
+    "cart.js",
+    "src/cart.js",
+    "lib/cart.mjs",
+    "cart.cjs",
+    "app/cart.jsx",
+    "src/cart.ts",
+    "src/cart.mts",
+    "src/cart.cts",
+    "src/cart.tsx",
+    "src/contest.js",
+    "src/test-utils.js",
+    "src/latest/cart.js",
+    "src/testing/cart.js",
+    "src/.hidden/cart.js",
+    ".config.js",
+    "src/cart.test-data.js",
+    "test/cart.js",
+    "tests/unit/cart.js",
+    "src/__tests__/cart.js",
+    "src/cart.test.js",
+    "src/cart.spec.ts",
+    "src/a.test.b.js",
+    "src/globals.d.ts",
+    "src/globals.d.mts",
+    "src/globals.d.cts",
+    "src/types.d.tsx",
+    "src/cart.json",
+    "src/cart.js.map",
+    "README.md",
+    "src/js",
+    "node_modules/pkg/index.js",
+    "packages/app/node_modules/pkg/index.js",
+  ]) {
+    const config = /** @type {{ rules?: Record<string, unknown> } | undefined} */ (
+      await engine.calculateConfigForFile(filePath)
+    );
+    assert.equal(
+      inScope(filePath),
+      config?.rules?.["ogham/disable-needs-reason"] !== undefined,
+      filePath,
+    );
+  }
+});
+
+test("the preset takes its files and ignores from the scope the check reads", () => {
+  assert.deepEqual(preset[0]?.files, FILES);
+  assert.deepEqual(preset[0]?.ignores, IGNORES);
 });

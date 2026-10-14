@@ -5,13 +5,19 @@
   "description": "Coding standards that travel with the repo: a pinned standard, a lint preset and a review rubric, installed by one bootstrap step",
   "license": "MIT",
   "type": "module",
+  "bin": {
+    "ogham": "bin/ogham.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "test": "node --test \"test/**/*.test.{js,mjs}\"",
     "typecheck": "tsc --noEmit",
     "lint": "eslint ."
   },
   "devDependencies": {
-    "@types/node": "^20.19.43",
+    "@types/node": "^22.20.5",
     "eslint": "^10.12.0",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.71.1"

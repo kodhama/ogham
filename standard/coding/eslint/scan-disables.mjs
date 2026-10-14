@@ -35,7 +35,7 @@
 // TypeScript parser is set, gets a parsing error from ESLint and no rule's
 // report.
 
-import { lintOff } from "../standard/coding/eslint/disable-needs-reason.mjs";
+import { lintOff } from "./disable-needs-reason.mjs";
 
 /**
  * A comment found in a text: its kind, the text between its markers, and
@@ -248,10 +248,12 @@ export const comments = (text) => {
  * @param {string} text
  * @returns {readonly Finding[]}
  */
-export const scanDisables = (text) =>
-  comments(text).flatMap((comment) => {
+export const scanDisables = (text) => {
+  // ESLint counts columns after a byte-order mark, so the scan drops it too.
+  const source = text.startsWith("\uFEFF") ? text.slice(1) : text;
+  return comments(source).flatMap((comment) => {
     const off = lintOff(comment);
-    const before = text.slice(0, comment.start);
+    const before = source.slice(0, comment.start);
     return off && off.reason === ""
       ? [
           {
@@ -262,3 +264,4 @@ export const scanDisables = (text) =>
         ]
       : [];
   });
+};
