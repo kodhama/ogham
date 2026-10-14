@@ -539,7 +539,10 @@ const carryOut = (io, facts, plan, command) => {
     code: 0,
     lines: summary({
       discarded,
-      diff: diff?.ok ? diff.out : "",
+      diff:
+        diff === undefined || diff.ok
+          ? (diff?.out ?? "")
+          : `Could not show git's diff: ${diff.out.trim().replace(/\s+/g, " ")}. Run git diff to see what changed.`,
       before,
       lock,
       removed: plan.remove,

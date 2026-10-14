@@ -208,3 +208,10 @@ git ignores any file asked about, the command lists it and writes nothing.
 **2026-10-14 correction to the entry above.** A file git reports as changed
 gets past the guard only as an owned file that `update --force` writes back,
 whether it was edited or deleted, not only an edited one.
+
+**2026-10-14 decision: a diff git cannot show is named, not hidden.** When
+the `git diff` printed after writing fails, as with a broken external diff
+driver, the command prints `Could not show git's diff:` with git's error on
+one line and says to run `git diff`. It keeps what it wrote and exits 0:
+the writes passed the check before the lock was written, and the diff only
+shows them. Found by the Codex GitHub reviewer on this PR.

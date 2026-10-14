@@ -452,6 +452,29 @@ test("a refusal after writing during update restores every touched path, leaving
   assert.equal(lockOf(root).version, VERSION);
 });
 
+test("update says so when git cannot show its diff, and keeps what it wrote", (t) => {
+  const root = adoptedRepo(t);
+  const io = ioFor(root);
+  /** @type {Io} */
+  const noDiff = {
+    ...io,
+    git: (args) =>
+      args[0] === "diff"
+        ? { ok: false, out: "fatal: external diff died\n", code: 128 }
+        : io.git(args),
+  };
+
+  const outcome = update(noDiff, shippedAt("9.9.9"), false);
+
+  assert.equal(outcome.code, 0, outcome.lines.join("\n"));
+  assert.ok(
+    outcome.lines.includes(
+      "Could not show git's diff: fatal: external diff died. Run git diff to see what changed.",
+    ),
+  );
+  assert.equal(lockOf(root).version, "9.9.9");
+});
+
 test("a file that differs only in CRLF line endings is not a local edit", (t) => {
   const root = adoptedRepo(t);
   writeFiles(root, {
