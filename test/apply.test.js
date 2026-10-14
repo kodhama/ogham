@@ -605,6 +605,24 @@ test("remove stops on a symbolic link to a folder under .ogham/, before writing 
   assert.equal(status(root), "");
 });
 
+test("update stops on a symbolic link to a file under .ogham/, before writing anything", (t) => {
+  const root = adoptedRepo(t);
+  const outside = mkdtempSync(join(tmpdir(), "ogham-outside-"));
+  t.after(() => rmSync(outside, { recursive: true, force: true }));
+  const victim = join(outside, "victim.txt");
+  writeFileSync(victim, "not ogham's\n");
+  unlinkSync(join(root, ".ogham/coding/rubric.md"));
+  symlinkSync(victim, join(root, ".ogham/coding/rubric.md"));
+  commitAll(root, "link the rubric out of the repo");
+
+  assert.throws(
+    () => update(ioFor(root), shippedAt("9.9.9"), true),
+    /\.ogham\/coding\/rubric\.md is a symbolic link/,
+  );
+  assert.equal(readFileSync(victim, "utf8"), "not ogham's\n");
+  assert.equal(status(root), "");
+});
+
 test("the vendored check reports a deleted scanner module instead of crashing", (t) => {
   const root = adoptedRepo(t);
   unlinkSync(join(root, ".ogham/coding/eslint/scope.mjs"));

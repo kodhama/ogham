@@ -110,9 +110,11 @@ claiming a clean rollback. Removing a file also removes each folder it leaves
 empty, so a rolled-back first `install` leaves no empty `.ogham/`.
 
 **2026-10-14 decision: ogham writes no file through a symbolic link.** A
-symbolic link inside `.ogham/` fails the command while it reads, before
-anything is written. A path to write or remove that is, or passes through, a
-symbolic link fails it while it writes, and it then rolls back. A committed
+symbolic link inside `.ogham/` fails `install`, `update` and `remove` while
+they read, before anything is written. A path to write or remove that is, or
+passes through, a symbolic link fails the command while it writes, and it
+then rolls back. `check` writes nothing: it reads through a link and judges
+the text it finds there. A committed
 link under `.ogham/` could otherwise make `update` overwrite a file outside
 the repo, make `remove` delete one past the clean-paths check, or leave a
 linked folder behind while `remove` reports success.
