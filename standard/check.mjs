@@ -254,6 +254,21 @@ const listFiles = (root) => [
 ];
 
 /**
+ * Effect: loads the file scope and the scan, which are vendored with the
+ * preset, or says why they could not be loaded, as when one was deleted.
+ * @returns {Promise<{ readonly inScope: (path: string) => boolean, readonly scanDisables: (text: string) => readonly Finding[] } | string>}
+ */
+const loadScanner = async () => {
+  try {
+    const { inScope } = await import("./coding/eslint/scope.mjs");
+    const { scanDisables } = await import("./coding/eslint/scan-disables.mjs");
+    return { inScope, scanDisables };
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+};
+
+/**
  * Effect: reads the repo at `root` and checks its adoption. The scan and
  * the file scope are loaded only where the lock says the preset is
  * installed, since their files are vendored with it.
@@ -274,14 +289,25 @@ export const readProblems = async (root) => {
     });
   }
 
-  const { inScope } = await import("./coding/eslint/scope.mjs");
-  const { scanDisables } = await import("./coding/eslint/scan-disables.mjs");
+  const scanner = await loadScanner();
+  if (typeof scanner === "string") {
+    return [
+      ...problems({
+        lockText,
+        version: VERSION,
+        contents,
+        sources: new Map(),
+        scan: () => [],
+      }),
+      `The scan for comments that turn lint off without a reason could not run (${scanner}). Run ogham's update with --force to restore .ogham/.`,
+    ];
+  }
   return problems({
     lockText,
     version: VERSION,
     contents,
-    sources: readTexts(root, listFiles(root).filter(inScope)),
-    scan: scanDisables,
+    sources: readTexts(root, listFiles(root).filter(scanner.inScope)),
+    scan: scanner.scanDisables,
   });
 };
 

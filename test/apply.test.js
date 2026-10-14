@@ -5,7 +5,16 @@
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync, readdirSync, writeFileSync } from "node:fs";
+import {
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  symlinkSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -474,4 +483,117 @@ test("a failure partway through remove restores every touched path", (t) => {
   assert.equal(outcome.code, 1);
   assert.match(outcome.lines.join("\n"), /disk went away/);
   assert.equal(status(root), "");
+});
+
+test("install reports git's error, not a missing tag, when the remote cannot be asked", (t) => {
+  const root = fixtureRepo(t, TS_REPO);
+  const io = repoIo(root);
+  /** @type {Io} */
+  const offline = {
+    ...io,
+    git: (args) =>
+      args[0] === "ls-remote"
+        ? { ok: false, out: "fatal: unable to access the remote\n" }
+        : io.git(args),
+  };
+
+  const outcome = install(offline, shipped);
+
+  assert.equal(outcome.code, 1);
+  assert.match(
+    outcome.lines.join("\n"),
+    /git said: fatal: unable to access the remote\)\. Nothing was written\./,
+  );
+  assert.equal(status(root), "");
+});
+
+test("a failed rollback names the paths it could not put back, and claims no clean rollback", (t) => {
+  const root = fixtureRepo(t, TS_REPO);
+  const io = corruptingFirstWrite(ioFor(root), ".ogham/coding/core.md");
+  /** @type {Io} */
+  const stuck = {
+    ...io,
+    remove: (path) => {
+      if (path === ".ogham/coding/rubric.md") throw new Error("read-only");
+      io.remove(path);
+    },
+  };
+
+  const outcome = install(stuck, shipped);
+
+  assert.equal(outcome.code, 1);
+  const printed = outcome.lines.join("\n");
+  assert.doesNotMatch(printed, /put every path it touched back/);
+  assert.match(printed, /could not put these paths back/);
+  assert.match(printed, /\.ogham\/coding\/rubric\.md: Error: read-only/);
+  assert.doesNotMatch(printed, /core\.md:/);
+});
+
+test("a rollback leaves alone the paths the run never changed", (t) => {
+  const root = adoptedRepo(t);
+  const io = ioFor(root);
+  /** @type {Io} */
+  const full = {
+    ...io,
+    write: () => {
+      throw new Error("disk full");
+    },
+  };
+
+  const outcome = update(full, shippedAt("9.9.9"), false);
+
+  assert.equal(outcome.code, 1);
+  assert.match(
+    outcome.lines.join("\n"),
+    /update failed and put every path it touched back as it was: disk full/,
+  );
+  assert.doesNotMatch(outcome.lines.join("\n"), /could not/);
+  assert.equal(status(root), "");
+});
+
+test("a rollback restores an uncommitted local edit that update --force overwrote", (t) => {
+  const root = adoptedRepo(t);
+  const edited = `${read(root, ".ogham/coding/rubric.md")}A local addition.\n`;
+  writeFiles(root, { ".ogham/coding/rubric.md": edited });
+
+  const outcome = update(
+    corruptingFirstWrite(ioFor(root), ".ogham/check.mjs"),
+    shippedAt("9.9.9"),
+    true,
+  );
+
+  assert.equal(outcome.code, 1);
+  assert.equal(read(root, ".ogham/coding/rubric.md"), edited);
+  assert.equal(lockOf(root).version, VERSION);
+  assert.equal(status(root), " M .ogham/coding/rubric.md\n");
+});
+
+test("update writes nothing through a symbolic link under .ogham/, and rolls back", (t) => {
+  const root = adoptedRepo(t);
+  const outside = mkdtempSync(join(tmpdir(), "ogham-outside-"));
+  t.after(() => rmSync(outside, { recursive: true, force: true }));
+  const victim = join(outside, "victim.txt");
+  writeFileSync(victim, "not ogham's\n");
+  unlinkSync(join(root, ".ogham/coding/rubric.md"));
+  symlinkSync(victim, join(root, ".ogham/coding/rubric.md"));
+  commitAll(root, "link the rubric out of the repo");
+
+  const outcome = update(ioFor(root), shippedAt("9.9.9"), true);
+
+  assert.equal(outcome.code, 1);
+  assert.match(outcome.lines.join("\n"), /is a symbolic link/);
+  assert.equal(readFileSync(victim, "utf8"), "not ogham's\n");
+  assert.equal(status(root), "");
+});
+
+test("the vendored check reports a deleted scanner module instead of crashing", (t) => {
+  const root = adoptedRepo(t);
+  unlinkSync(join(root, ".ogham/coding/eslint/scope.mjs"));
+
+  const outcome = runVendoredCheck(root);
+
+  assert.equal(outcome.status, 1);
+  assert.match(outcome.stderr, /scope\.mjs is missing/);
+  assert.match(outcome.stderr, /could not run/);
+  assert.doesNotMatch(outcome.stderr, /^\s+at /m);
 });

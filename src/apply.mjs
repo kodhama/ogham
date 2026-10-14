@@ -6,6 +6,7 @@
 
 import { execFileSync } from "node:child_process";
 import {
+  lstatSync,
   mkdirSync,
   readFileSync,
   readdirSync,
@@ -55,8 +56,12 @@ export const REMOTE = "https://github.com/kodhama/ogham.git";
 
 const SHIPPED_ROOT = "standard";
 
+// How long one git call may run before it is stopped: the tag lookup goes
+// over the network.
+const GIT_TIMEOUT_MS = 5 * 60 * 1000;
+
 /**
- * Whether an error is the file system saying there is no such file.
+ * Whether an error carries a file system error code, such as `ENOENT`.
  * @param {unknown} error
  * @param {string} code
  */
@@ -70,6 +75,27 @@ const isCode = (error, code) =>
  */
 export const repoIo = (root) => {
   const at = (/** @type {string} */ path) => join(root, path);
+
+  /**
+   * Fails when the path, or a folder on the way to it, is a symbolic link:
+   * writing or removing through one could reach a file outside the repo.
+   * @param {string} path
+   */
+  const refuseLinks = (path) => {
+    const parts = path.split("/");
+    parts.forEach((_, index) => {
+      const prefix = parts.slice(0, index + 1).join("/");
+      try {
+        if (lstatSync(at(prefix)).isSymbolicLink()) {
+          throw new Error(
+            `${prefix} is a symbolic link, and ogham writes only real files inside the repo`,
+          );
+        }
+      } catch (error) {
+        if (!isCode(error, "ENOENT")) throw error;
+      }
+    });
+  };
 
   /**
    * @param {string} dir
@@ -113,10 +139,12 @@ export const repoIo = (root) => {
       }
     },
     write: (path, text) => {
+      refuseLinks(path);
       mkdirSync(dirname(at(path)), { recursive: true });
       writeFileSync(at(path), text);
     },
     remove: (path) => {
+      refuseLinks(path);
       rmSync(at(path), { force: true });
       pruneEmpty(dirname(path));
     },
@@ -130,6 +158,10 @@ export const repoIo = (root) => {
             encoding: "utf8",
             stdio: ["ignore", "pipe", "pipe"],
             maxBuffer: 256 * 1024 * 1024,
+            timeout: GIT_TIMEOUT_MS,
+            // A remote that asks for credentials fails instead of prompting.
+            // eslint-disable-next-line ogham/no-restricted-properties -- og-no-hidden-inputs: passes the environment on to git; this is the edge, where git is run
+            env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
           }),
         };
       } catch (error) {
@@ -231,6 +263,7 @@ const showEdit = (io, lock, { path, state }) => {
   const pinned = lock.files[path];
   const history = io.git(["log", "--format=%H", "--", path]);
   const commits = history.ok ? history.out.split("\n").filter(Boolean) : [];
+  // og-thin-effects: reads each commit's copy until one matches the pinned hash; deciding purely would mean reading every copy in the file's history first
   const base = commits.find((commit) => {
     const shown = io.git(["show", `${commit}:${path}`]);
     return shown.ok && contentHash(shown.out) === pinned;
@@ -262,10 +295,11 @@ const showEdits = (io, text, edits) => {
 };
 
 /**
- * Effect: the commit a version's tag points at, from the remote.
+ * Effect: the commit a version's tag points at, from the remote, or git's
+ * error when the remote could not be asked.
  * @param {Io} io
  * @param {string} version
- * @returns {string | undefined}
+ * @returns {{ readonly commit: string | undefined, readonly failure: string | undefined }}
  */
 const resolveTag = (io, version) => {
   const tag = `v${version}`;
@@ -275,18 +309,21 @@ const resolveTag = (io, version) => {
     `refs/tags/${tag}`,
     `refs/tags/${tag}^{}`,
   ]);
-  return found.ok ? tagCommit(found.out, tag) : undefined;
+  return found.ok
+    ? { commit: tagCommit(found.out, tag), failure: undefined }
+    : { commit: undefined, failure: found.out.trim() };
 };
 
 /**
  * Effect: writes and removes what a plan says, checks the owned files
  * against the lock, and writes the lock last. On any failure it writes back
- * every touched path as the snapshot holds it, and deletes what it created.
+ * each touched path that changed as the snapshot holds it, and deletes what
+ * it created.
  * @param {Io} io
  * @param {ReadonlyMap<string, string>} write
  * @param {readonly string[]} remove
  * @param {Lock | undefined} lock the lock to leave, or none
- * @returns {{ readonly before: ReadonlyMap<string, string | undefined>, readonly error: string | undefined }} each touched path's text before, and why it failed
+ * @returns {{ readonly before: ReadonlyMap<string, string | undefined>, readonly error: string | undefined, readonly unrestored: readonly string[] }} each touched path's text before; why it failed; and each path it could not put back, with why
  */
 const applyAll = (io, write, remove, lock) => {
   const touched = [...new Set([...write.keys(), ...remove, LOCK_PATH])];
@@ -308,10 +345,11 @@ const applyAll = (io, write, remove, lock) => {
         throw new Error(`after removing, ${left.join(", ")} still existed`);
       }
     }
-    return { before, error: undefined };
+    return { before, error: undefined, unrestored: [] };
   } catch (error) {
-    const failed = [...before].flatMap(([path, text]) => {
+    const unrestored = [...before].flatMap(([path, text]) => {
       try {
+        if (io.read(path) === text) return [];
         if (text === undefined) io.remove(path);
         else io.write(path, text);
         return [];
@@ -321,12 +359,8 @@ const applyAll = (io, write, remove, lock) => {
     });
     return {
       before,
-      error: [
-        String(error instanceof Error ? error.message : error),
-        ...(failed.length > 0
-          ? ["These paths could not be put back:", ...failed]
-          : []),
-      ].join("\n"),
+      error: String(error instanceof Error ? error.message : error),
+      unrestored,
     };
   }
 };
@@ -375,15 +409,18 @@ const carryOut = (io, facts, plan, command) => {
   }
 
   const { adoption } = plan;
-  const commit =
-    adoption === undefined
-      ? undefined
-      : (adoption.commit ?? resolveTag(io, adoption.version));
+  const resolved =
+    adoption === undefined || adoption.commit !== undefined
+      ? { commit: adoption?.commit, failure: undefined }
+      : resolveTag(io, adoption.version);
+  const { commit } = resolved;
   if (adoption !== undefined && commit === undefined) {
     return {
       code: 1,
       lines: [
-        `Found no tag v${adoption.version} at ${REMOTE}, so the lock could not record the source commit. Nothing was written.`,
+        resolved.failure === undefined
+          ? `Found no tag v${adoption.version} at ${REMOTE}, so the lock could not record the source commit. Nothing was written.`
+          : `Could not ask ${REMOTE} for tag v${adoption.version} (git said: ${resolved.failure}). Nothing was written.`,
       ],
     };
   }
@@ -392,13 +429,25 @@ const carryOut = (io, facts, plan, command) => {
       ? undefined
       : buildLock({ ...adoption, commit });
   const discarded = showEdits(io, facts.lockText, plan.discarded);
-  const { before, error } = applyAll(io, plan.write, plan.remove, lock);
+  const { before, error, unrestored } = applyAll(
+    io,
+    plan.write,
+    plan.remove,
+    lock,
+  );
   if (error !== undefined) {
     return {
       code: 1,
-      lines: [
-        `${command} failed and put every path it touched back as it was: ${error}`,
-      ],
+      lines:
+        unrestored.length === 0
+          ? [
+              `${command} failed and put every path it touched back as it was: ${error}`,
+            ]
+          : [
+              `${command} failed: ${error}`,
+              "It could not put these paths back as they were. Check each before running it again:",
+              ...unrestored.map((line) => `  ${line}`),
+            ],
     };
   }
 

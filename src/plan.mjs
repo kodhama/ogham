@@ -30,7 +30,7 @@ import {
  *   readonly dirty: readonly string[],
  *   readonly rootFiles: readonly string[],
  *   readonly tracked: readonly string[],
- * }} Facts the lock's text; the text of every file under `.ogham/` and of each file outside it a command may touch; which of those paths git reports as changed, untracked or ignored (a folder's path ends in a slash); the names of the files at the repo's root; and every tracked path
+ * }} Facts the lock's text; the text of every file under `.ogham/` and of each file outside it a command may touch; which of those paths git reports as changed, untracked or ignored (a folder's path ends in a slash); which of the root files detection asks about (`package.json`, `tsconfig.json`) exist; and every tracked path
  */
 
 /**
