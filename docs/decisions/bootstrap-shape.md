@@ -204,3 +204,7 @@ reports as changed, untracked or ignored. Such a file gets past the guard
 only when `update --force` overwrites an edited owned file. A tracked file
 git reports unchanged is not asked about, since git never ignores one. When
 git ignores any file asked about, the command lists it and writes nothing.
+
+**2026-10-14 correction to the entry above.** A file git reports as changed
+gets past the guard only as an owned file that `update --force` writes back,
+whether it was edited or deleted, not only an edited one.
