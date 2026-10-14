@@ -5,6 +5,12 @@
   "description": "Coding standards that travel with the repo: a pinned standard, a lint preset and a review rubric, installed by one bootstrap step",
   "license": "MIT",
   "type": "module",
+  "bin": {
+    "ogham": "bin/ogham.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "test": "node --test \"test/**/*.test.{js,mjs}\"",
     "typecheck": "tsc --noEmit",
