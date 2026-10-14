@@ -469,10 +469,27 @@ test("update says so when git cannot show its diff, and keeps what it wrote", (t
   assert.equal(outcome.code, 0, outcome.lines.join("\n"));
   assert.ok(
     outcome.lines.includes(
-      "Could not show git's diff: fatal: external diff died. Run git diff to see what changed.",
+      "Could not show git's diff: fatal: external diff died. Run git diff --no-ext-diff to see what changed.",
     ),
   );
   assert.equal(lockOf(root).version, "9.9.9");
+  assert.match(
+    read(root, ".ogham/coding/core.md"),
+    /A line the newer version adds\.\n$/,
+  );
+});
+
+test("update shows git's own diff when the repo sets an external diff program", (t) => {
+  const root = adoptedRepo(t);
+  git(root, ["config", "diff.external", "false"]);
+
+  const outcome = update(ioFor(root), shippedAt("9.9.9"), false);
+
+  assert.equal(outcome.code, 0, outcome.lines.join("\n"));
+  assert.match(
+    outcome.lines.join("\n"),
+    /diff --git a\/\.ogham\/coding\/core\.md/,
+  );
 });
 
 test("a file that differs only in CRLF line endings is not a local edit", (t) => {

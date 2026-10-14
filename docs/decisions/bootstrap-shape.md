@@ -215,3 +215,11 @@ driver, the command prints `Could not show git's diff:` with git's error on
 one line and says to run `git diff`. It keeps what it wrote and exits 0:
 the writes passed the check before the lock was written, and the diff only
 shows them. Found by the Codex GitHub reviewer on this PR.
+
+**2026-10-14 correction to the entry above.** The diff printed after
+writing is `git diff --no-ext-diff`, so an external diff program the repo
+sets does not replace or break it, and the line for a diff git cannot show
+says to run `git diff --no-ext-diff`. "The writes passed the check before
+the lock was written" is true of the owned files only: the check reads them,
+not the line added to `.prettierignore`. The command still keeps what it
+wrote, since every write and the lock are complete by then.

@@ -534,7 +534,9 @@ const carryOut = (io, facts, plan, command) => {
     text === undefined ? [] : [path],
   );
   const diff =
-    existed.length > 0 ? io.git(["diff", "--", ...existed]) : undefined;
+    existed.length > 0
+      ? io.git(["diff", "--no-ext-diff", "--", ...existed])
+      : undefined;
   return {
     code: 0,
     lines: summary({
@@ -542,7 +544,7 @@ const carryOut = (io, facts, plan, command) => {
       diff:
         diff === undefined || diff.ok
           ? (diff?.out ?? "")
-          : `Could not show git's diff: ${diff.out.trim().replace(/\s+/g, " ")}. Run git diff to see what changed.`,
+          : `Could not show git's diff: ${diff.out.trim().replace(/\s+/g, " ")}. Run git diff --no-ext-diff to see what changed.`,
       before,
       lock,
       removed: plan.remove,
