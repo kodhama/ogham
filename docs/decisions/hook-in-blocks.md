@@ -138,3 +138,14 @@ the check alike. In `ogham.local.md`, an `og-` inside a URL (from a scheme's
 `://` to the next space, or an autolink in `<>`) or before a `.` and an
 extension is not a citation; one after a `/` elsewhere is, which replaces the
 rule above.
+
+**2026-10-15 update: broken markers in a file that gets no block, and an
+ignored file that already holds its block.** `install` and `update` scan
+every `AGENTS.md`, `CLAUDE.md` and `CODING_STANDARDS.md` there is for broken
+ogham markers, as `remove` does, so a `CLAUDE.md` that imports `AGENTS.md`,
+and so gets no block, stops the run on them too; it is still not written. A
+whole ogham block in such a file is left as it is and not pinned, and
+`remove` takes it out, as it does in every file a block can go in. Where
+git ignores a file whose block the lock would pin, `install` and `update`
+refuse even when the file already holds that block and nothing is written to
+it.

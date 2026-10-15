@@ -236,9 +236,10 @@ const targets = (blocks, contents, pinned) => {
  * Where the blocks go, and what that writes. On `install` it also creates
  * `CLAUDE.md` with its import, and `ogham.local.md`, where either is absent.
  * `update` creates neither: it rewrites the blocks there are, and places one
- * in a file that has come to call for it since. A file with broken ogham
- * markers, or whose end sits inside another tool's open block where a block
- * would be added, stops the run.
+ * in a file that has come to call for it since. A file a block can go in
+ * with broken ogham markers, even one that gets no block, or whose end sits
+ * inside another tool's open block where a block would be added, stops the
+ * run. A whole block in a file that gets none is left as it is, unpinned.
  * @param {{
  *   readonly templates: ReadonlyMap<string, string>,
  *   readonly core: string,
@@ -259,21 +260,30 @@ export const placement = ({
   created,
   install,
 }) => {
-  const placed = targets(
-    renderBlocks(templates, core, languages),
-    contents,
-    pinned,
-  ).map(([file, block]) => {
-    const text = contents.get(file) ?? "";
+  const chosen = new Map(
+    targets(renderBlocks(templates, core, languages), contents, pinned),
+  );
+  // Every file a block can go in is scanned, as `removal` scans it, so broken
+  // markers stop the run in a file that gets no block too. Only a file that
+  // gets one can have it land inside another tool's open block.
+  const problems = BLOCK_FILES.flatMap((file) => {
+    const text = contents.get(file);
+    if (text === undefined) return [];
     const { span, errors, unclosed } = scanned(file, text, pinned);
-    const problems =
-      errors.length > 0 || span !== undefined || unclosed === undefined
-        ? errors
-        : [`${unclosed}, so a block added at its end would sit inside it.`];
-    return { file, block, text: withBlock(text, block), problems };
+    return errors.length > 0 ||
+      span !== undefined ||
+      unclosed === undefined ||
+      !chosen.has(file)
+      ? errors
+      : [`${unclosed}, so a block added at its end would sit inside it.`];
   });
-  const problems = placed.flatMap((one) => one.problems);
   if (problems.length > 0) return { kind: "refuse", problems };
+
+  const placed = [...chosen].map(([file, block]) => ({
+    file,
+    block,
+    text: withBlock(contents.get(file) ?? "", block),
+  }));
 
   const seedClaude = install && !contents.has(CLAUDE_FILE);
   const seedLocal = install && !contents.has(LOCAL_FILE);

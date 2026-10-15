@@ -499,11 +499,12 @@ const carryOut = (io, facts, plan, command) => {
   }
 
   const { adoption } = plan;
-  // Of the files the plan writes and the owned files the lock will claim,
-  // git is asked about each new one and each one git reports as changed,
-  // untracked or ignored. An owned file whose text already matches is not
-  // written but is still claimed, so it is asked about too. A tracked file
-  // git reports unchanged is left out: git never ignores one.
+  // Of the files the plan writes, the owned files and the files whose block
+  // the lock will pin, git is asked about each new one and each one git
+  // reports as changed, untracked or ignored. An owned file or a block whose
+  // text already matches is not written but is still claimed, so it is asked
+  // about too. A tracked file git reports unchanged is left out: git never
+  // ignores one.
   const claimed =
     adoption === undefined
       ? []
@@ -511,6 +512,7 @@ const carryOut = (io, facts, plan, command) => {
           ...new Set([
             ...plan.write.keys(),
             ...adoption.owned.keys(),
+            ...adoption.blocks.keys(),
             LOCK_PATH,
           ]),
         ];

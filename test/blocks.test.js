@@ -25,7 +25,12 @@ import {
   scanBlocks,
 } from "../standard/check.mjs";
 import { install, remove, update } from "../src/apply.mjs";
-import { renderBlocks, withBlock, withoutBlock } from "../src/blocks.mjs";
+import {
+  CLAUDE_FILE,
+  renderBlocks,
+  withBlock,
+  withoutBlock,
+} from "../src/blocks.mjs";
 import { run } from "../src/cli.mjs";
 import {
   ioFor,
@@ -482,6 +487,48 @@ for (const [name, text, lines] of /** @type {const} */ ([
     assert.equal(status(root), "");
   });
 }
+
+for (const [name, text, line] of /** @type {const} */ ([
+  [
+    "two ogham begin markers",
+    `@AGENTS.md\n${BEGIN}\nx\n${END}\n${BEGIN}\ny\n${END}\n`,
+    /CLAUDE\.md:5 opens a second ogham block; the first opens at line 2/,
+  ],
+  [
+    "a begin without an end",
+    `@AGENTS.md\n\n${BEGIN}\nx\n`,
+    /CLAUDE\.md:3 opens an ogham block that never closes/,
+  ],
+])) {
+  test(`${name} in a CLAUDE.md that imports AGENTS.md, and so gets no block, stops install and update`, (t) => {
+    const fresh = fixtureRepo(t, { ...GO_REPO, "CLAUDE.md": text });
+    const root = adopted(t, { ...GO_REPO, "CLAUDE.md": "@AGENTS.md\n" });
+    writeFiles(root, { "CLAUDE.md": text });
+    commitAll(root, "break the markers");
+
+    for (const { repo, outcome } of [
+      { repo: fresh, outcome: install(ioFor(fresh), shipped) },
+      { repo: root, outcome: update(ioFor(root), shippedAt("9.9.9"), false) },
+    ]) {
+      assert.equal(outcome.code, 1, printed(outcome));
+      assert.match(printed(outcome), line);
+      assert.match(printed(outcome), /Nothing was written/);
+      assert.equal(read(repo, CLAUDE_FILE), text);
+      assert.equal(status(repo), "");
+    }
+  });
+}
+
+test("a whole ogham block in a CLAUDE.md that imports AGENTS.md is left as it is, unpinned, and remove takes it out", (t) => {
+  const claude = `@AGENTS.md\n\n${BEGIN}\nx\n${END}\n`;
+  const root = adopted(t, { ...GO_REPO, "CLAUDE.md": claude });
+
+  assert.equal(read(root, CLAUDE_FILE), claude);
+  assert.deepEqual(Object.keys(lockOf(root).blocks), [AGENTS_FILE]);
+
+  succeeded(remove(ioFor(root)));
+  assert.equal(read(root, CLAUDE_FILE), "@AGENTS.md\n");
+});
 
 test("broken ogham markers stop update and remove too, and check reports them", async (t) => {
   const root = adopted(t, GO_REPO);

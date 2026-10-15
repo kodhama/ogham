@@ -257,6 +257,25 @@ test("update refuses a newly owned path the repo already holds, identical but ig
   assert.equal(lockOf(root).version, VERSION);
 });
 
+test("install refuses an AGENTS.md git ignores that already holds the block, since the lock would pin it", (t) => {
+  const agents = read(adoptedRepo(t), "AGENTS.md");
+  const root = fixtureRepo(t, {
+    ...TS_REPO,
+    ".gitignore": "AGENTS.md\n",
+    "AGENTS.md": agents,
+  });
+
+  const outcome = install(ioFor(root), shipped);
+
+  assert.equal(outcome.code, 1, outcome.lines.join("\n"));
+  assert.deepEqual(
+    outcome.lines.filter((line) => line.startsWith("  ")),
+    ["  AGENTS.md"],
+  );
+  assert.equal(existsSync(join(root, LOCK_PATH)), false);
+  assert.equal(read(root, "AGENTS.md"), agents);
+});
+
 test("install refuses on a failed ignore lookup instead of reading it as nothing ignored", (t) => {
   const root = fixtureRepo(t, TS_REPO);
   const io = ioFor(root);
