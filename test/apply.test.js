@@ -4,7 +4,6 @@
 // call answered here instead of by the network.
 
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -20,16 +19,24 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
-import { fileURLToPath } from "node:url";
 
 import {
   LOCK_PATH,
   VERSION,
   contentHash,
-  parseLock,
   readProblems,
 } from "../standard/check.mjs";
-import { install, readSource, remove, repoIo, update } from "../src/apply.mjs";
+import { install, remove, repoIo, update } from "../src/apply.mjs";
+import {
+  COMMIT,
+  corruptingFirstWrite,
+  ioFor,
+  lockOf,
+  read,
+  runVendoredCheck,
+  shipped,
+  shippedAt,
+} from "./helpers/adoption.js";
 import {
   commitAll,
   fixtureRepo,
@@ -39,79 +46,6 @@ import {
 } from "./helpers/fixture-repo.js";
 
 /** @typedef {import("../src/apply.mjs").Io} Io */
-/** @typedef {import("../src/plan.mjs").Source} Source */
-
-const PACKAGE_ROOT = fileURLToPath(new URL("..", import.meta.url));
-const shipped = readSource(repoIo(PACKAGE_ROOT));
-const COMMIT = "1".repeat(40);
-
-/**
- * The shipped standard at another version: the check's version constant
- * changed, and one line added to the core.
- * @param {string} version
- * @returns {Source}
- */
-const shippedAt = (version) => {
-  const check = shipped.files.get("check.mjs") ?? "";
-  const constant = `export const VERSION = "${VERSION}";`;
-  assert.ok(check.includes(constant), "the check declares its version");
-  return {
-    version,
-    files: new Map(
-      [...shipped.files].map(([path, text]) => [
-        path,
-        path === "check.mjs"
-          ? text.replace(constant, `export const VERSION = "${version}";`)
-          : path === "coding/core.md"
-            ? `${text}\nA line the newer version adds.\n`
-            : text,
-      ]),
-    ),
-  };
-};
-
-/**
- * The repo's io, with the tag lookup answered: every tag asked for points
- * at `commit`, or at nothing when `commit` is empty.
- * @param {string} root
- * @param {string} [commit]
- * @returns {Io}
- */
-const ioFor = (root, commit = COMMIT) => {
-  const io = repoIo(root);
-  return {
-    ...io,
-    git: (args) =>
-      args[0] === "ls-remote"
-        ? { ok: true, out: commit ? `${commit}\t${args[2]}\n` : "" }
-        : io.git(args),
-  };
-};
-
-/**
- * The io with its first write to `target` corrupted, as a disk might, and
- * every later write, the restoring one included, left alone.
- * @param {Io} io
- * @param {string} target
- * @returns {Io}
- */
-const corruptingFirstWrite = (io, target) => {
-  const seen = { corrupted: false };
-  return {
-    ...io,
-    write: (path, text) => {
-      const corrupt = path === target && !seen.corrupted;
-      if (corrupt) seen.corrupted = true;
-      io.write(path, corrupt ? `${text}x` : text);
-    },
-  };
-};
-
-/**
- * @param {string} root
- * @param {string} path
- */
-const read = (root, path) => readFileSync(join(root, path), "utf8");
 
 /**
  * Every file under a folder of the repo, by its path from the repo's root.
@@ -124,26 +58,6 @@ const filesUnder = (root, dir) =>
     .filter((entry) => entry.isFile())
     .map((entry) => join(entry.parentPath, entry.name).slice(root.length + 1))
     .sort();
-
-/**
- * @param {string} root
- * @returns {import("../standard/check.mjs").Lock}
- */
-const lockOf = (root) => {
-  const lock = parseLock(read(root, LOCK_PATH));
-  assert.ok(lock, "the repo has a lock");
-  return lock;
-};
-
-/**
- * Effect: runs the vendored check in the repo, as an adopted repo does.
- * @param {string} root
- */
-const runVendoredCheck = (root) =>
-  spawnSync(process.execPath, [".ogham/check.mjs"], {
-    cwd: root,
-    encoding: "utf8",
-  });
 
 const TS_REPO = {
   "package.json": '{ "name": "fixture" }\n',
@@ -208,6 +122,7 @@ test("the lock records the line install added outside .ogham/, and the core's po
   assert.equal(read(root, ".prettierignore"), "dist/\n.ogham/\n");
   assert.deepEqual(lockOf(root).added.lines, [
     { file: ".prettierignore", line: ".ogham/" },
+    { file: "CLAUDE.md", line: "@AGENTS.md" },
   ]);
   assert.match(
     read(root, ".ogham/coding/core.md"),
@@ -423,7 +338,7 @@ test("update to a newer version shows a diff for each changed owned file and lea
   assert.match(printed, /diff --git a\/\.ogham\/coding\/core\.md/);
   assert.match(printed, /\+A line the newer version adds\./);
   assert.match(printed, /diff --git a\/\.ogham\/check\.mjs/);
-  assert.doesNotMatch(printed, /typescript\.md/);
+  assert.doesNotMatch(printed, /diff --git a\/\.ogham\/coding\/typescript\.md/);
   assert.equal(read(root, "ogham.local.md"), local);
   assert.equal(lockOf(root).version, "9.9.9");
   assert.equal(lockOf(root).commit, "2".repeat(40));
@@ -606,7 +521,7 @@ test("the vendored check runs its scan from .ogham/ and reports a reasonless dis
   assert.match(outcome.stderr, /src\/b\.ts:1:1 .* gives no reason/);
 });
 
-test("remove deletes .ogham/ and the line it added, keeps ogham.local.md, and touches nothing else", (t) => {
+test("remove deletes .ogham/, the line it added and the files it created, keeps ogham.local.md, and touches nothing else", (t) => {
   const local = "# Local rules\n";
   const root = adoptedRepo(t, { "ogham.local.md": local });
   const owned = Object.keys(lockOf(root).files);
@@ -622,7 +537,10 @@ test("remove deletes .ogham/ and the line it added, keeps ogham.local.md, and to
     .filter(Boolean)
     .map((line) => line.slice(3))
     .sort();
-  assert.deepEqual(touched, [...owned, LOCK_PATH, ".prettierignore"].sort());
+  assert.deepEqual(
+    touched,
+    [...owned, LOCK_PATH, ".prettierignore", "AGENTS.md", "CLAUDE.md"].sort(),
+  );
 });
 
 test("remove refuses on uncommitted changes to a path it would touch", (t) => {

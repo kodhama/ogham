@@ -49,3 +49,12 @@ lacks. Raise it only together with that floor.
 **2026-10-14 update: @types/node moves to `^22.20.5`**, with the floor. The
 maintainer ruled Node 22 the floor (see `bootstrap-shape.md`), so the
 typecheck now rejects an API a Node 22 machine lacks.
+
+**2026-10-15 decision: prettier** (development only, exactly `3.9.10`). The
+agents block wraps the inline core in `prettier-ignore` markers so that a
+repo's formatter leaves the block's hash alone (plan KTD2), and the hook-in
+tests run Prettier on the files ogham writes to prove it (plan U7). Pinned
+exactly because the test asserts Prettier's output byte for byte, and a
+formatter's minor release may change it. Turned down: running `npx prettier`
+from the tests, which needs the network in CI, and trusting the markers
+without running Prettier, which the plan's scenario rules out.
