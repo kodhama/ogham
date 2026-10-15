@@ -2,7 +2,7 @@
 // which of them an update has to write or remove, and the one line added to
 // a formatter's ignore file.
 
-import { contentHash } from "../standard/check.mjs";
+import { bare, contentHash, lineBreak, linesOf } from "../standard/check.mjs";
 
 /** @typedef {import("../standard/check.mjs").Choices} Choices */
 
@@ -61,24 +61,6 @@ export const changes = (target, current, previous) => ({
   ),
   remove: previous.filter((path) => !target.has(path) && current.has(path)),
 });
-
-/**
- * The line break a text uses: the Windows one if it has any.
- * @param {string} text
- */
-const lineBreak = (text) => (text.includes("\r\n") ? "\r\n" : "\n");
-
-/**
- * A text's lines, each with its line break.
- * @param {string} text
- */
-const linesOf = (text) => text.match(/[^\n]*\n|[^\n]+$/gu) ?? [];
-
-/**
- * A line without its line break.
- * @param {string} line
- */
-const bare = (line) => line.replace(/\r?\n$/u, "");
 
 /**
  * A text with `line` as its last line, unless it already has that line. The

@@ -19,9 +19,12 @@ import { dirname, join } from "node:path";
 import {
   LOCK_PATH,
   VERSION,
+  blockDrift,
+  blockText,
   contentHash,
   drift,
   parseLock,
+  scanBlocks,
 } from "../standard/check.mjs";
 import { nulList, statusPaths, tagCommit } from "./git-text.mjs";
 import { buildLock, lockText } from "./lock.mjs";
@@ -61,6 +64,7 @@ import { OWNED_ROOT } from "./vendor.mjs";
 export const REMOTE = "https://github.com/kodhama/ogham.git";
 
 const SHIPPED_ROOT = "standard";
+const TEMPLATES_ROOT = "templates";
 
 // How long one git call may run before it is stopped: the tag lookup goes
 // over the network.
@@ -269,45 +273,71 @@ export const readFacts = (io) => ({
 });
 
 /**
+ * Effect: reads every file under one of the package's folders, by its path
+ * inside that folder.
+ * @param {Io} io the package's own folder
+ * @param {string} dir
+ * @returns {ReadonlyMap<string, string>}
+ */
+const readFolder = (io, dir) =>
+  new Map(
+    io
+      .list(dir)
+      .map((path) => [path.slice(dir.length + 1), io.read(path) ?? ""]),
+  );
+
+/**
  * Effect: reads the standard this copy of ogham ships, from `standard/`
- * beside its `src/`.
+ * beside its `src/`, and the templates for the blocks and the files it
+ * seeds, from `templates/`.
  * @param {Io} io the package's own folder
  * @returns {Source}
  */
 export const readSource = (io) => ({
   version: VERSION,
-  files: new Map(
-    io
-      .list(SHIPPED_ROOT)
-      .map((path) => [
-        path.slice(SHIPPED_ROOT.length + 1),
-        io.read(path) ?? "",
-      ]),
-  ),
+  files: readFolder(io, SHIPPED_ROOT),
+  templates: readFolder(io, TEMPLATES_ROOT),
 });
 
 /**
- * Effect: the local edit to one owned file, as lines to print. It is shown
- * against the latest commit whose copy of the file still has the pinned
- * text, so a committed edit and an uncommitted one show alike.
+ * The hash of the ogham block in a file's text, or `undefined` when it holds
+ * none it can read.
+ * @param {string} path
+ * @param {string} text
+ */
+const blockHash = (path, text) => {
+  const { span, errors } = scanBlocks(path, text);
+  return span === undefined || errors.length > 0
+    ? undefined
+    : contentHash(blockText(text, span));
+};
+
+/**
+ * Effect: the local edit to one owned file or block, as lines to print. It
+ * is shown against the latest commit whose copy of the file still has the
+ * pinned text, so a committed edit and an uncommitted one show alike.
  * @param {Io} io
  * @param {Lock} lock
  * @param {Drift} drifted
  * @returns {readonly string[]}
  */
-const showEdit = (io, lock, { path, state }) => {
-  if (state === "missing") return [`${path} was deleted.`];
-  const pinned = lock.files[path];
+const showEdit = (io, lock, { path, state, block }) => {
+  const what = block ? `The ogham block in ${path}` : path;
+  if (state === "missing") return [`${what} was deleted.`];
+  const pinned = block ? lock.blocks[path] : lock.files[path];
+  const hashOf = block
+    ? (/** @type {string} */ text) => blockHash(path, text)
+    : contentHash;
   const history = io.git(["log", "--format=%H", "--", path]);
   const commits = history.ok ? history.out.split("\n").filter(Boolean) : [];
   // og-thin-effects: reads each commit's copy until one matches the pinned hash; deciding purely would mean reading every copy in the file's history first
   const base = commits.find((commit) => {
     const shown = io.git(["show", `${commit}:${path}`]);
-    return shown.ok && contentHash(shown.out) === pinned;
+    return shown.ok && hashOf(shown.out) === pinned;
   });
   if (base === undefined) {
     return [
-      `${path} was edited, and its pinned text is in no commit of this repo, so the edit cannot be shown.`,
+      `${what} was edited, and its pinned text is in no commit of this repo, so the edit cannot be shown.`,
     ];
   }
   const diff = io.git([
@@ -319,7 +349,7 @@ const showEdit = (io, lock, { path, state }) => {
     path,
   ]);
   return [
-    `${path} was edited, against ${base.slice(0, 12)}:`,
+    `${what} was edited, against ${base.slice(0, 12)}:`,
     ...(diff.ok ? diff.out : diff.out.trim()).split("\n").filter(Boolean),
   ];
 };
@@ -376,7 +406,10 @@ const applyAll = (io, write, remove, lock) => {
     for (const [path, text] of write) io.write(path, text);
     for (const path of remove) io.remove(path);
     if (lock !== undefined) {
-      const wrong = drift(lock, readTexts(io, Object.keys(lock.files)));
+      const wrong = [
+        ...drift(lock, readTexts(io, Object.keys(lock.files))),
+        ...blockDrift(lock, readTexts(io, Object.keys(lock.blocks))),
+      ];
       if (wrong.length > 0) {
         throw new Error(
           `after writing, ${wrong.map(({ path }) => path).join(", ")} did not match the lock`,
@@ -455,7 +488,9 @@ export const summary = ({ discarded, diff, before, lock, removed }) => [
  * @returns {Outcome}
  */
 const carryOut = (io, facts, plan, command) => {
-  if (plan.kind === "done") return { code: 0, lines: [plan.message] };
+  if (plan.kind === "done") {
+    return { code: 0, lines: [plan.message, ...plan.warnings] };
+  }
   if (plan.kind === "refuse") {
     return {
       code: 1,
@@ -464,11 +499,12 @@ const carryOut = (io, facts, plan, command) => {
   }
 
   const { adoption } = plan;
-  // Of the files the plan writes and the owned files the lock will claim,
-  // git is asked about each new one and each one git reports as changed,
-  // untracked or ignored. An owned file whose text already matches is not
-  // written but is still claimed, so it is asked about too. A tracked file
-  // git reports unchanged is left out: git never ignores one.
+  // Of the files the plan writes, the owned files and the files whose block
+  // the lock will pin, git is asked about each new one and each one git
+  // reports as changed, untracked or ignored. An owned file or a block whose
+  // text already matches is not written but is still claimed, so it is asked
+  // about too. A tracked file git reports unchanged is left out: git never
+  // ignores one.
   const claimed =
     adoption === undefined
       ? []
@@ -476,6 +512,7 @@ const carryOut = (io, facts, plan, command) => {
           ...new Set([
             ...plan.write.keys(),
             ...adoption.owned.keys(),
+            ...adoption.blocks.keys(),
             LOCK_PATH,
           ]),
         ];
@@ -555,16 +592,19 @@ const carryOut = (io, facts, plan, command) => {
       : undefined;
   return {
     code: 0,
-    lines: summary({
-      discarded,
-      diff:
-        diff === undefined || diff.ok
-          ? (diff?.out ?? "")
-          : `Could not show git's diff: ${diff.out.trim().replace(/\s+/g, " ")}. Run git diff --no-ext-diff --no-textconv to see what changed.`,
-      before,
-      lock,
-      removed: plan.remove,
-    }),
+    lines: [
+      ...summary({
+        discarded,
+        diff:
+          diff === undefined || diff.ok
+            ? (diff?.out ?? "")
+            : `Could not show git's diff: ${diff.out.trim().replace(/\s+/g, " ")}. Run git diff --no-ext-diff --no-textconv to see what changed.`,
+        before,
+        lock,
+        removed: plan.remove,
+      }),
+      ...plan.warnings,
+    ],
   };
 };
 

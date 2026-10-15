@@ -2,24 +2,20 @@
 // nothing, or a set of files to write and remove. Every function here is
 // pure; `apply.mjs` reads the facts and carries the plan out.
 
-import { LOCK_PATH, drift, parseLock } from "../standard/check.mjs";
+import { LOCK_PATH, blockDrift, drift, parseLock } from "../standard/check.mjs";
+import { HOOK_FILES, placement, removal } from "./blocks.mjs";
 import { choices as choicesFor } from "./detect.mjs";
 import { buildLock } from "./lock.mjs";
-import {
-  OWNED_ROOT,
-  changes,
-  owned,
-  withLine,
-  withoutLine,
-} from "./vendor.mjs";
+import { OWNED_ROOT, changes, owned, withLine } from "./vendor.mjs";
 
 /** @typedef {import("../standard/check.mjs").AddedLine} AddedLine */
 /** @typedef {import("../standard/check.mjs").Drift} Drift */
 
 /**
- * The standard as the running version ships it: its version, and every file
- * under `standard/` by its path there.
- * @typedef {{ readonly version: string, readonly files: ReadonlyMap<string, string> }} Source
+ * The standard as the running version ships it: its version, every file
+ * under `standard/` by its path there, and every template under
+ * `templates/` by its name.
+ * @typedef {{ readonly version: string, readonly files: ReadonlyMap<string, string>, readonly templates: ReadonlyMap<string, string> }} Source
  */
 
 /**
@@ -36,24 +32,29 @@ import {
 /**
  * The adoption a command leaves behind, from which the lock is built. A
  * `commit` of `undefined` means the version's tag still has to be looked up.
+ * `blocks` holds each placed block's text by the file that holds it, and
+ * `created` the files outside `.ogham/` the adoption created.
  * @typedef {{
  *   readonly version: string,
  *   readonly commit: string | undefined,
  *   readonly choices: import("../standard/check.mjs").Choices,
  *   readonly owned: ReadonlyMap<string, string>,
+ *   readonly blocks: ReadonlyMap<string, string>,
  *   readonly lines: readonly AddedLine[],
+ *   readonly created: readonly string[],
  * }} Adoption
  */
 
 /**
  * A command's decision. `refuse` writes nothing, and names the owned files
- * whose local edits should be shown. `done` means there was nothing to do.
- * `apply` writes and removes files, then writes the lock for `adoption`, or
- * leaves the repo with no lock when there is none; `discarded` names the local
- * edits it overwrites.
+ * and blocks whose local edits should be shown. `done` means there was
+ * nothing to do. `apply` writes and removes files, then writes the lock for
+ * `adoption`, or leaves the repo with no lock when there is none; `discarded`
+ * names the local edits it overwrites. `done` and `apply` carry the warnings
+ * to print, which do not fail the command.
  * @typedef {{ readonly kind: "refuse", readonly message: string, readonly edits: readonly Drift[] }
- *   | { readonly kind: "done", readonly message: string }
- *   | { readonly kind: "apply", readonly write: ReadonlyMap<string, string>, readonly remove: readonly string[], readonly adoption: Adoption | undefined, readonly discarded: readonly Drift[] }} Plan
+ *   | { readonly kind: "done", readonly message: string, readonly warnings: readonly string[] }
+ *   | { readonly kind: "apply", readonly write: ReadonlyMap<string, string>, readonly remove: readonly string[], readonly adoption: Adoption | undefined, readonly discarded: readonly Drift[], readonly warnings: readonly string[] }} Plan
  */
 
 const PRETTIER_IGNORE = ".prettierignore";
@@ -61,7 +62,10 @@ const IGNORE_LINE = `${OWNED_ROOT}/`;
 
 // Every path outside `.ogham/` that a command may write. A command reads
 // these, and their state in git, before it decides.
-export const OUTSIDE = [PRETTIER_IGNORE];
+export const OUTSIDE = [PRETTIER_IGNORE, ...HOOK_FILES];
+
+// The shipped core, which the agents block carries inline.
+const CORE_SOURCE = "coding/core.md";
 
 const NOT_ADOPTED = `This repo has not adopted ogham: it has no ${LOCK_PATH}.`;
 const UNREADABLE = `${LOCK_PATH} is not a lock this version of ogham reads. Restore it from git, or run the version that wrote it.`;
@@ -91,6 +95,22 @@ const refuseUncommitted = (paths, command) => ({
     "These paths have uncommitted changes:",
     ...paths.map((path) => `  ${path}`),
     `Commit or stash them, then run ${command} again. Nothing was written.`,
+  ].join("\n"),
+  edits: [],
+});
+
+/**
+ * The refusal for files whose ogham markers are broken.
+ * @param {readonly string[]} problems each broken marker, with its file and line
+ * @param {string} command
+ * @returns {Plan}
+ */
+const refuseMarkers = (problems, command) => ({
+  kind: "refuse",
+  message: [
+    "These ogham markers stop the run:",
+    ...problems.map((problem) => `  ${problem}`),
+    `Fix them by hand, then run ${command} again. Nothing was written.`,
   ].join("\n"),
   edits: [],
 });
@@ -131,12 +151,25 @@ export const planInstall = (source, facts) => {
     return {
       kind: "done",
       message: `Already adopted: this repo has a ${LOCK_PATH}. Run update to move it to another version.`,
+      warnings: [],
     };
   }
   const chosen = choicesFor(facts);
   const target = owned(source.files, chosen);
   const ignore = ignoreEdit(facts.contents, []);
-  const write = new Map([...target, ...ignore.write]);
+  const hookIn = placement({
+    templates: source.templates,
+    core: source.files.get(CORE_SOURCE) ?? "",
+    languages: chosen.languages,
+    contents: facts.contents,
+    pinned: [],
+    created: [],
+    install: true,
+  });
+  if (hookIn.kind === "refuse") {
+    return refuseMarkers(hookIn.problems, "install");
+  }
+  const write = new Map([...target, ...ignore.write, ...hookIn.write]);
   const blocked = uncommitted([...write.keys(), LOCK_PATH], facts.dirty);
 
   return blocked.length > 0
@@ -150,16 +183,20 @@ export const planInstall = (source, facts) => {
           commit: undefined,
           choices: chosen,
           owned: target,
-          lines: ignore.lines,
+          blocks: hookIn.blocks,
+          lines: [...ignore.lines, ...hookIn.lines],
+          created: hookIn.created,
         },
         discarded: [],
+        warnings: hookIn.warnings,
       };
 };
 
 /**
- * What `update` does: bring the owned files to the running version, with
- * the choices the lock recorded. An owned file edited or deleted in the repo
- * stops it, unless `force` says to overwrite.
+ * What `update` does: bring the owned files and the blocks to the running
+ * version, with the choices the lock recorded. An owned file or a block
+ * edited or deleted in the repo stops it, unless `force` says to overwrite.
+ * Broken ogham markers stop it either way.
  * @param {Source} source
  * @param {Facts} facts
  * @param {boolean} force
@@ -176,13 +213,30 @@ export const planUpdate = (source, facts, force) => {
   const lock = parseLock(facts.lockText);
   if (!lock) return { kind: "refuse", message: UNREADABLE, edits: [] };
 
-  const drifted = drift(lock, facts.contents);
+  const hookIn = placement({
+    templates: source.templates,
+    core: source.files.get(CORE_SOURCE) ?? "",
+    languages: lock.choices.languages,
+    contents: facts.contents,
+    pinned: Object.keys(lock.blocks),
+    created: lock.added.files,
+    install: false,
+  });
+  if (hookIn.kind === "refuse") return refuseMarkers(hookIn.problems, "update");
+
+  const drifted = [
+    ...drift(lock, facts.contents),
+    ...blockDrift(lock, facts.contents),
+  ];
   if (drifted.length > 0 && !force) {
     return {
       kind: "refuse",
       message: [
-        "These files under .ogham/ were changed in this repo, where they are read-only:",
-        ...drifted.map(({ path, state }) => `  ${path} (${state})`),
+        "These parts of the adoption were changed in this repo, where they are read-only:",
+        ...drifted.map(
+          ({ path, state, block }) =>
+            `  ${path} (${block ? `ogham block ${state}` : state})`,
+        ),
         "Move a change you want to keep to ogham.local.md. Then run update with --force, which overwrites them. Nothing was written.",
       ].join("\n"),
       edits: drifted,
@@ -196,7 +250,7 @@ export const planUpdate = (source, facts, force) => {
     Object.keys(lock.files),
   );
   const ignore = ignoreEdit(facts.contents, lock.added.lines);
-  const write = new Map([...files, ...ignore.write]);
+  const write = new Map([...files, ...ignore.write, ...hookIn.write]);
   /** @type {Adoption} */
   const adoption = {
     version: source.version,
@@ -204,7 +258,9 @@ export const planUpdate = (source, facts, force) => {
     commit: source.version === lock.version ? lock.commit : undefined,
     choices: lock.choices,
     owned: target,
+    blocks: hookIn.blocks,
     lines: ignore.lines,
+    created: hookIn.created,
   };
   const sameLock =
     adoption.commit !== undefined &&
@@ -214,6 +270,7 @@ export const planUpdate = (source, facts, force) => {
     return {
       kind: "done",
       message: `Already at version ${lock.version}: no file differs, and nothing was written.`,
+      warnings: hookIn.warnings,
     };
   }
 
@@ -225,20 +282,21 @@ export const planUpdate = (source, facts, force) => {
 
   return blocked.length > 0
     ? refuseUncommitted(blocked, "update")
-    : { kind: "apply", write, remove, adoption, discarded: drifted };
+    : {
+        kind: "apply",
+        write,
+        remove,
+        adoption,
+        discarded: drifted,
+        warnings: hookIn.warnings,
+      };
 };
 
 /**
- * A file's text with each of the recorded lines taken out.
- * @param {string} text
- * @param {readonly AddedLine[]} lines the lines recorded for this file
- */
-const withoutLines = (text, lines) =>
-  lines.reduce((rest, { line }) => withoutLine(rest, line), text);
-
-/**
  * What `remove` does: delete the files the lock lists and the lock itself,
- * and take the lines the lock recorded back out. It touches no other path.
+ * take every ogham block and the lines the lock recorded back out, and
+ * delete each file the adoption created that is then left empty. It keeps
+ * `ogham.local.md`, and touches no other path. Broken ogham markers stop it.
  * @param {Facts} facts
  * @returns {Plan}
  */
@@ -253,26 +311,31 @@ export const planRemove = (facts) => {
   const lock = parseLock(facts.lockText);
   if (!lock) return { kind: "refuse", message: UNREADABLE, edits: [] };
 
+  const outside = removal({
+    contents: facts.contents,
+    pinned: Object.keys(lock.blocks),
+    created: lock.added.files,
+    lines: lock.added.lines,
+  });
+  if (outside.kind === "refuse") {
+    return refuseMarkers(outside.problems, "remove");
+  }
   const remove = [
     ...Object.keys(lock.files).filter((path) => facts.contents.has(path)),
+    ...outside.remove,
     LOCK_PATH,
   ];
-  const write = new Map(
-    [...new Set(lock.added.lines.map(({ file }) => file))].flatMap((file) => {
-      const text = facts.contents.get(file);
-      const rest =
-        text === undefined
-          ? text
-          : withoutLines(
-              text,
-              lock.added.lines.filter((line) => line.file === file),
-            );
-      return rest === undefined || rest === text ? [] : [[file, rest]];
-    }),
-  );
+  const { write } = outside;
   const blocked = uncommitted([...remove, ...write.keys()], facts.dirty);
 
   return blocked.length > 0
     ? refuseUncommitted(blocked, "remove")
-    : { kind: "apply", write, remove, adoption: undefined, discarded: [] };
+    : {
+        kind: "apply",
+        write,
+        remove,
+        adoption: undefined,
+        discarded: [],
+        warnings: [],
+      };
 };

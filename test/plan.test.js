@@ -9,10 +9,20 @@ import { statusPaths, tagCommit } from "../src/git-text.mjs";
 import { buildLock, lockText } from "../src/lock.mjs";
 import { planInstall, planRemove, planUpdate } from "../src/plan.mjs";
 
+// Templates small enough to read in a test's expectations.
+const TEMPLATES = new Map([
+  ["block-agents.md", "{{core}}\n{{languages}}agents\n"],
+  ["block-claude.md", "{{languages}}claude\n"],
+  ["block-reviewer.md", "reviewer\n"],
+  ["CLAUDE.md", "@AGENTS.md\n"],
+  ["ogham.local.md", "local\n"],
+]);
+
 /**
  * A source of the standard at a version.
  * @param {string} version
  * @param {string} [core]
+ * @returns {import("../src/plan.mjs").Source}
  */
 const sourceAt = (version, core = "core\n") => ({
   version,
@@ -23,7 +33,11 @@ const sourceAt = (version, core = "core\n") => ({
     ["coding/typescript.md", "typescript\n"],
     ["coding/eslint/index.mjs", "preset\n"],
   ]),
+  templates: TEMPLATES,
 });
+
+// The files install writes outside `.ogham/` in a repo that has none of them.
+const HOOKED = ["AGENTS.md", "CLAUDE.md", "ogham.local.md"];
 
 /** @type {import("../src/plan.mjs").Facts} */
 const empty = {
@@ -37,34 +51,6 @@ const empty = {
 const typescript = { languages: ["typescript"], preset: true };
 
 /**
- * The facts of a repo that adopted `source` with the TypeScript choices, then
- * had `edits` made to its files.
- * @param {ReturnType<typeof sourceAt>} source
- * @param {Record<string, string | undefined>} [edits]
- * @param {readonly import("../standard/check.mjs").AddedLine[]} [lines]
- */
-const adopted = (source, edits = {}, lines = []) => {
-  const owned = new Map(
-    [...source.files].map(([path, text]) => [`.ogham/${path}`, text]),
-  );
-  const lock = lockText(
-    buildLock({
-      version: source.version,
-      commit: "a".repeat(40),
-      choices: typescript,
-      owned,
-      lines,
-    }),
-  );
-  const contents = new Map([...owned, [LOCK_PATH, lock]]);
-  for (const [path, text] of Object.entries(edits)) {
-    if (text === undefined) contents.delete(path);
-    else contents.set(path, text);
-  }
-  return { ...empty, lockText: lock, contents };
-};
-
-/**
  * @template {{ kind: string }} P
  * @template {P["kind"]} K
  * @param {P} plan
@@ -76,21 +62,63 @@ const as = (plan, kind) => {
   return /** @type {Extract<P, { kind: K }>} */ (plan);
 };
 
+/**
+ * The facts of a repo that adopted `source` with the TypeScript choices, as
+ * install plans it, then had `edits` made to its files. `lines` stand in for
+ * lines an earlier version added.
+ * @param {ReturnType<typeof sourceAt>} source
+ * @param {Record<string, string | undefined>} [edits]
+ * @param {readonly import("../standard/check.mjs").AddedLine[]} [lines]
+ */
+const adopted = (source, edits = {}, lines = []) => {
+  const installed = as(
+    planInstall(source, {
+      ...empty,
+      rootFiles: ["package.json", "tsconfig.json"],
+    }),
+    "apply",
+  );
+  const adoption = installed.adoption;
+  assert.ok(adoption);
+  const lock = lockText(
+    buildLock({
+      ...adoption,
+      commit: "a".repeat(40),
+      lines: [...adoption.lines, ...lines],
+    }),
+  );
+  const contents = new Map([...installed.write, [LOCK_PATH, lock]]);
+  for (const [path, text] of Object.entries(edits)) {
+    if (text === undefined) contents.delete(path);
+    else contents.set(path, text);
+  }
+  return { ...empty, lockText: lock, contents };
+};
+
 test("install on a repo with no code writes the core, its check and no language page", () => {
   const plan = as(planInstall(sourceAt("1.0.0"), empty), "apply");
 
-  assert.deepEqual(
-    [...plan.write.keys()],
-    [".ogham/check.mjs", ".ogham/coding/core.md", ".ogham/coding/rubric.md"],
-  );
+  const owned = [
+    ".ogham/check.mjs",
+    ".ogham/coding/core.md",
+    ".ogham/coding/rubric.md",
+  ];
+  assert.deepEqual([...plan.write.keys()], [...owned, ...HOOKED]);
   assert.deepEqual(plan.remove, []);
+  const agents = "<!-- ogham:begin -->\n\ncore\n\nagents\n\n<!-- ogham:end -->";
+  assert.equal(plan.write.get("AGENTS.md"), `${agents}\n`);
+  assert.equal(plan.write.get("CLAUDE.md"), "@AGENTS.md\n");
+  assert.equal(plan.write.get("ogham.local.md"), "local\n");
   assert.deepEqual(plan.adoption, {
     version: "1.0.0",
     commit: undefined,
     choices: { languages: [], preset: false },
-    owned: plan.write,
-    lines: [],
+    owned: new Map(owned.map((path) => [path, plan.write.get(path) ?? ""])),
+    blocks: new Map([["AGENTS.md", agents]]),
+    lines: [{ file: "CLAUDE.md", line: "@AGENTS.md" }],
+    created: ["AGENTS.md", "CLAUDE.md"],
   });
+  assert.deepEqual(plan.warnings, []);
 });
 
 test("install on a TypeScript repo writes the page and the preset too", () => {
@@ -119,6 +147,7 @@ test("install adds .ogham/ to an existing .prettierignore and records the line",
   assert.equal(plan.write.get(".prettierignore"), "dist/\n.ogham/\n");
   assert.deepEqual(plan.adoption?.lines, [
     { file: ".prettierignore", line: ".ogham/" },
+    { file: "CLAUDE.md", line: "@AGENTS.md" },
   ]);
   assert.ok(!plan.adoption?.owned.has(".prettierignore"));
 });
@@ -133,7 +162,10 @@ test("install leaves a .prettierignore that already has the line alone, and reco
   );
 
   assert.ok(!plan.write.has(".prettierignore"));
-  assert.deepEqual(plan.adoption?.lines, []);
+  assert.deepEqual(
+    plan.adoption?.lines.filter(({ file }) => file === ".prettierignore"),
+    [],
+  );
 });
 
 test("install on a repo that has a lock does nothing and points to update", () => {
@@ -147,7 +179,12 @@ test("install on a repo that has a lock does nothing and points to update", () =
 });
 
 test("install refuses when a path it would write has uncommitted changes, and names it", () => {
-  for (const dirty of [".ogham/coding/core.md", ".ogham/", ".prettierignore"]) {
+  for (const dirty of [
+    ".ogham/coding/core.md",
+    ".ogham/",
+    ".prettierignore",
+    "AGENTS.md",
+  ]) {
     const plan = as(
       planInstall(sourceAt("1.0.0"), {
         ...empty,
@@ -213,6 +250,10 @@ test("update to a newer version writes the files that changed, and asks for the 
     [
       [".ogham/check.mjs", "check 1.1.0\n"],
       [".ogham/coding/core.md", "core, reworded\n"],
+      [
+        "AGENTS.md",
+        "<!-- ogham:begin -->\n\ncore, reworded\n\n- **Language page:** `.ogham/coding/typescript.md`. Read it before writing code in its language.\nagents\n\n<!-- ogham:end -->\n",
+      ],
     ],
   );
   assert.deepEqual(plan.remove, []);
@@ -230,7 +271,9 @@ test("update keeps the choices the lock recorded, whatever the repo holds now", 
       commit: "a".repeat(40),
       choices: { languages: [], preset: false },
       owned,
+      blocks: new Map(),
       lines: [],
+      created: [],
     }),
   );
   const plan = as(
@@ -260,7 +303,7 @@ test("update keeps the choices the lock recorded, whatever the repo holds now", 
 test("update removes an owned file the new version no longer ships", () => {
   const old = sourceAt("1.0.0");
   const next = {
-    version: "1.1.0",
+    ...sourceAt("1.1.0"),
     files: new Map(
       [...sourceAt("1.1.0").files].filter(
         ([path]) => path !== "coding/rubric.md",
@@ -374,6 +417,7 @@ test("update adds the .prettierignore line to a file that appeared since, keepin
 
   assert.deepEqual([...plan.write], [[".prettierignore", "dist/\n.ogham/\n"]]);
   assert.deepEqual(plan.adoption?.lines, [
+    { file: "CLAUDE.md", line: "@AGENTS.md" },
     ...recorded,
     { file: ".prettierignore", line: ".ogham/" },
   ]);
@@ -407,6 +451,8 @@ test("remove takes out the files the lock lists, the lock itself and the lines i
     ".ogham/coding/eslint/index.mjs",
     ".ogham/coding/rubric.md",
     ".ogham/coding/typescript.md",
+    "AGENTS.md",
+    "CLAUDE.md",
     LOCK_PATH,
   ]);
   assert.deepEqual([...plan.write], [[".prettierignore", "dist/\n"]]);

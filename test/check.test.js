@@ -21,7 +21,8 @@ const lockFor = (/** @type {Record<string, string>} */ texts) => ({
   files: Object.fromEntries(
     Object.entries(texts).map(([path, text]) => [path, contentHash(text)]),
   ),
-  added: { lines: [] },
+  blocks: {},
+  added: { lines: [], files: [] },
 });
 
 const noScan = () => [];
@@ -64,6 +65,9 @@ test("text that is not a lock reads as no lock", () => {
       added: { lines: [{ file: ".prettierignore" }] },
     }),
     JSON.stringify({ ...lock, added: {} }),
+    JSON.stringify({ ...lock, added: { lines: [] } }),
+    JSON.stringify({ ...lock, blocks: undefined }),
+    JSON.stringify({ ...lock, blocks: { "AGENTS.md": 1 } }),
   ]) {
     assert.equal(parseLock(text), undefined, text);
   }

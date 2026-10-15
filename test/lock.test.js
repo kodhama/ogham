@@ -17,7 +17,12 @@ const lock = buildLock({
   commit: "a".repeat(40),
   choices: { languages: ["typescript"], preset: true },
   owned,
+  blocks: new Map([
+    ["CODING_STANDARDS.md", "reviewer block"],
+    ["AGENTS.md", "agents block"],
+  ]),
   lines: [{ file: ".prettierignore", line: ".ogham/" }],
+  created: ["AGENTS.md"],
 });
 
 test("the lock records the version, the commit, the choices and what was added outside .ogham/", () => {
@@ -26,6 +31,7 @@ test("the lock records the version, the commit, the choices and what was added o
   assert.deepEqual(lock.choices, { languages: ["typescript"], preset: true });
   assert.deepEqual(lock.added, {
     lines: [{ file: ".prettierignore", line: ".ogham/" }],
+    files: ["AGENTS.md"],
   });
 });
 
@@ -35,6 +41,13 @@ test("the lock holds one hash per owned file, in path order", () => {
     [".ogham/coding/core.md", contentHash("core\n")],
   ]);
   assert.deepEqual(drift(lock, owned), []);
+});
+
+test("the lock holds one hash per placed block, keyed by its file, in path order", () => {
+  assert.deepEqual(Object.entries(lock.blocks), [
+    ["AGENTS.md", contentHash("agents block")],
+    ["CODING_STANDARDS.md", contentHash("reviewer block")],
+  ]);
 });
 
 test("the lock's text ends with a line break and reads back as the same lock", () => {
@@ -50,7 +63,12 @@ test("the same input gives the same lock text, whatever order the files came in"
     commit: "a".repeat(40),
     choices: { languages: ["typescript"], preset: true },
     owned: new Map([...owned].reverse()),
+    blocks: new Map([
+      ["AGENTS.md", "agents block"],
+      ["CODING_STANDARDS.md", "reviewer block"],
+    ]),
     lines: [{ file: ".prettierignore", line: ".ogham/" }],
+    created: ["AGENTS.md"],
   });
 
   assert.equal(lockText(reversed), lockText(lock));

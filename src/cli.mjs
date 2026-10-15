@@ -5,7 +5,7 @@
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-import { readProblems } from "../standard/check.mjs";
+import { readProblems, readWarnings } from "../standard/check.mjs";
 import { install, readSource, remove, repoIo, update } from "./apply.mjs";
 
 /** @typedef {import("./apply.mjs").Outcome} Outcome */
@@ -91,9 +91,10 @@ export const run = async (args, cwd) => {
 
   if (parsed.command === "check") {
     const found = await readProblems(root);
+    const warned = readWarnings(root);
     return found.length > 0
-      ? { code: 1, lines: found }
-      : { code: 0, lines: ["The adoption is intact."] };
+      ? { code: 1, lines: [...warned, ...found] }
+      : { code: 0, lines: [...warned, "The adoption is intact."] };
   }
   const io = repoIo(root);
   const source = readSource(
