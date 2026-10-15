@@ -584,6 +584,25 @@ for (const [name, wrap] of /** @type {const} */ ([
     assert.equal(read(root, AGENTS_FILE), hidden);
     assert.equal(status(root), "");
   });
+
+  test(`the check names the fence that hides a pinned block behind ${name}, and does not send to update --force`, async (t) => {
+    const root = adopted(t, { ...GO_REPO, "AGENTS.md": "# Agents\n" });
+    writeFiles(root, { "AGENTS.md": wrap(read(root, AGENTS_FILE)) });
+
+    const vendored = runVendoredCheck(root);
+
+    for (const found of [
+      (await readProblems(root)).join("\n"),
+      vendored.stderr,
+    ]) {
+      assert.match(
+        found,
+        /AGENTS\.md:3 opens a code fence that hides the ogham marker at line 4/,
+      );
+      assert.doesNotMatch(found, /--force/);
+    }
+    assert.equal(vendored.status, 1);
+  });
 }
 
 for (const [name, claude] of /** @type {const} */ ([
@@ -795,6 +814,37 @@ test("update --force puts back a block that was deleted, after the repo's own te
   assert.equal(read(root, AGENTS_FILE), pinned);
 });
 
+test("install over an old block on the first line, behind a byte-order mark, keeps the mark, passes the check, and remove gives the rest back", async (t) => {
+  const root = fixtureRepo(t, {
+    ...GO_REPO,
+    "AGENTS.md": `\uFEFF${BEGIN}\nold\n${END}\n\nrest\n`,
+  });
+
+  succeeded(install(ioFor(root), shipped));
+  commitAll(root, "adopt ogham");
+
+  assert.ok(read(root, AGENTS_FILE).startsWith(`\uFEFF${BEGIN}\n`));
+  assert.deepEqual(await readProblems(root), []);
+  assert.equal(runVendoredCheck(root).status, 0);
+  succeeded(remove(ioFor(root)));
+  assert.equal(read(root, AGENTS_FILE), "\uFEFFrest\n");
+});
+
+test("update --force on a block moved to the first line, behind a byte-order mark, keeps the mark and passes the check", (t) => {
+  const root = adopted(t, { ...GO_REPO, "AGENTS.md": "# Agents\n" });
+  const block = blockIn(read(root, AGENTS_FILE)) ?? "";
+  writeFiles(root, { "AGENTS.md": `\uFEFF${block}\n\n# Agents\n` });
+  commitAll(root, "move the block to the top");
+
+  succeeded(update(ioFor(root), shippedAt("9.9.9"), true));
+
+  const agents = read(root, AGENTS_FILE);
+  assert.ok(agents.startsWith(`\uFEFF${BEGIN}\n`));
+  assert.ok(agents.endsWith(`${END}\n\n# Agents\n`));
+  const vendored = runVendoredCheck(root);
+  assert.equal(vendored.status, 0, vendored.stderr);
+});
+
 test("install refuses when AGENTS.md has uncommitted changes, and writes nothing", (t) => {
   const root = fixtureRepo(t, { ...GO_REPO, "AGENTS.md": "# Agents\n" });
   writeFiles(root, { "AGENTS.md": "# Agents, edited\n" });
@@ -910,19 +960,32 @@ test("the local layer's check reads IDs from the core and the file it is given",
   assert.deepEqual(localProblems("og-zz\n", undefined), []);
 });
 
-test("an og- inside a URL or a file name is not a citation; one at a sentence's end is", () => {
+test("an og- before a dot and a file extension is not a citation; one at a sentence's end is", () => {
   const core = "- **`og-a`** Rule a.\n";
 
   assert.deepEqual(
-    localProblems(
-      "See https://example.com/og-image.png and og-notes.md.\n",
-      core,
-    ),
+    localProblems("See og-image.png and og-notes.md.\n", core),
     [],
   );
   assert.deepEqual(localProblems("Then see og-no-hidden-inputs.\n", core), [
     "ogham.local.md:1 cites og-no-hidden-inputs, which the core does not define.",
   ]);
+});
+
+test("an og- inside a URL is not a citation; one after a slash outside a URL is", () => {
+  const core = "- **`og-known`** Rule.\n";
+
+  assert.deepEqual(localProblems("Use og-known/og-unknown.\n", core), [
+    "ogham.local.md:1 cites og-unknown, which the core does not define.",
+  ]);
+  for (const line of [
+    "See https://example.invalid/rules/og-unknown for it.",
+    "See https://example.invalid/?rule=og-unknown",
+    "See https://example.invalid/rules#og-unknown.",
+    "See <mailto:og-unknown@example.invalid>.",
+  ]) {
+    assert.deepEqual(localProblems(`${line}\n`, core), [], line);
+  }
 });
 
 test("the local layer's code-level exception reads true in any language, with the lint disable only as an example", () => {

@@ -128,3 +128,13 @@ behind or doubled; a repo that deleted that block and shows the markers in a
 fence is stopped too. The `@AGENTS.md` import is not read in a fenced or
 indented code block or an inline code span. In `ogham.local.md`, an `og-`
 after a `/`, or before a `.` and an extension, is not a citation.
+
+**2026-10-15 update: the check on a hidden block, byte-order marks, and
+URLs.** Where a fence hides the block the lock pins, the check names the
+fence's line and the marker's, and says to close or move the fence, since
+`update --force` stops there too. A byte-order mark before a block on line 1
+is kept in the file and is no part of the block's text or hash, in `src/` and
+the check alike. In `ogham.local.md`, an `og-` inside a URL (from a scheme's
+`://` to the next space, or an autolink in `<>`) or before a `.` and an
+extension is not a citation; one after a `/` elsewhere is, which replaces the
+rule above.

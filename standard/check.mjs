@@ -337,7 +337,8 @@ export const scanBlocks = (file, text) => {
 
 /**
  * The text of a block, from the line that opens it to the line that closes
- * it, with line feeds between its lines and none after the last.
+ * it, with line feeds between its lines and none after the last. A file's
+ * byte-order mark before it is no part of it.
  * @param {string} text the text of the file that holds it
  * @param {Span} span
  */
@@ -345,7 +346,8 @@ export const blockText = (text, span) =>
   linesOf(text)
     .slice(span.start, span.end + 1)
     .map(bare)
-    .join("\n");
+    .join("\n")
+    .replace(/^\uFEFF/u, "");
 
 /**
  * The blocks the lock pins that no longer match it, in the lock's order. A
@@ -400,8 +402,10 @@ export const sizeWarning = (text) => {
 
 const CORE_ENTRY = /^- \*\*`(og-[a-z0-9]+(?:-[a-z0-9]+)*)`\*\*/u;
 const LOCAL_ENTRY = /^- \*\*`?(local-[a-z0-9]+(?:-[a-z0-9]+)*)`?\*\*/u;
-// An `og-` after a `/`, or before a `.` and an extension, is no citation.
-const OG_REFERENCE = /(?<![\w/-])og-[a-z0-9]+(?:-[a-z0-9]+)*(?![\w-]|\.\w)/gu;
+// An `og-` in a URL, or before a `.` and an extension, is no citation. A URL
+// runs from its scheme's `://` to the next space, or is an autolink in `<>`.
+const OG_REFERENCE = /(?<![\w-])og-[a-z0-9]+(?:-[a-z0-9]+)*(?![\w-]|\.\w)/gu;
+const URL_TEXT = /[a-z][a-z0-9+.-]*:\/\/\S*|<[a-z][a-z0-9+.-]*:[^\s<>]*>/giu;
 
 /**
  * What is wrong in the repo's local layer: each `og-` ID it cites that the
@@ -423,7 +427,10 @@ export const localProblems = (local, core) => {
   );
   const lines = linesOf(local).map(bare);
   const cited = lines.flatMap((line, index) =>
-    (line.match(OG_REFERENCE) ?? []).map((id) => ({ id, line: index + 1 })),
+    (line.replace(URL_TEXT, " ").match(OG_REFERENCE) ?? []).map((id) => ({
+      id,
+      line: index + 1,
+    })),
   );
   const unknown =
     core === undefined
@@ -466,9 +473,15 @@ const driftProblem = ({ path, state, block }, contents) => {
     if (state === "edited") {
       return `The ogham block in ${path} differs from its pinned text. A formatter may have caused it: keep it away from the block. For a change you meant, put it in ogham.local.md, then run ogham's update with --force.`;
     }
-    return contents.has(path)
+    const text = contents.get(path);
+    if (text === undefined) {
+      return `${path} is missing, and the lock pins an ogham block in it. Restore it from git, or run ogham's update with --force.`;
+    }
+    // update stops on a block a fence hides, so the fence is what to fix.
+    const { hidden } = scanBlocks(path, text);
+    return hidden === undefined
       ? `${path} has no ogham block, and the lock pins one there. Run ogham's update with --force to put it back.`
-      : `${path} is missing, and the lock pins an ogham block in it. Restore it from git, or run ogham's update with --force.`;
+      : `${hidden}; the lock pins a block here. Close that fence before the block, or move the fence so the block sits outside it.`;
   }
   return state === "missing"
     ? `${path} is missing. Run ogham's update with --force to put it back.`
