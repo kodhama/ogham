@@ -33,7 +33,7 @@ An exemption loosens a core rule for a named scope. Each one names the rule's ID
 - `og-<id>` in `<folder or glob>`: <the reason the rule cannot hold there>.
 ```
 
-- **A code-level exception** needs no entry here. It is a comment at the spot, carried by the lint disable where lint reports the line: `eslint-disable-next-line ogham/<rule> -- og-<id>: <effect>; <reason>`.
+- **A code-level exception** needs no entry here. It is a comment at the spot, `og-<id>: <effect>; <reason>`. Where lint reports the line, the lint disable carries it (for example, in TypeScript, `eslint-disable-next-line ogham/<rule> -- og-<id>: <effect>; <reason>`); it is a plain comment otherwise.
 - **A folder-wide loosening** is a block in the repo's own lint config that turns an `ogham/` rule off for a glob, plus a matching entry here. The config change without the entry is a finding.
 
 None yet.

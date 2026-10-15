@@ -18,6 +18,7 @@ import {
   END,
   LOCAL_FILE,
   bare,
+  fenced,
   lineBreak,
   linesOf,
   scanBlocks,
@@ -37,9 +38,42 @@ export const HOOK_FILES = [AGENTS_FILE, CLAUDE_FILE, REVIEWER_FILE, LOCAL_FILE];
 const BLOCK_FILES = [AGENTS_FILE, CLAUDE_FILE, REVIEWER_FILE];
 
 // The line a created `CLAUDE.md` holds, and how an existing one is seen to
-// import `AGENTS.md` already: an `@` path standing on its own, not in code.
+// import `AGENTS.md` already: an `@` path standing on its own, not in a
+// fenced or indented code block or an inline code span.
 const AGENTS_IMPORT = "@AGENTS.md";
-const IMPORTS_AGENTS = /(?:^|\s)@(?:\.\/)?AGENTS\.md(?=\s|$)/mu;
+const IMPORTS_AGENTS = /(?:^|\s)@(?:\.\/)?AGENTS\.md(?=\s|$)/u;
+const CODE_SPAN = /(?<!`)(`+)(?!`).*?(?<!`)\1(?!`)/gu;
+const INDENTED_CODE = /^(?: {4}|\t)/u;
+
+/**
+ * Whether a `CLAUDE.md`'s text imports `AGENTS.md` outside code.
+ * @param {string} text
+ */
+const importsAgents = (text) => {
+  const lines = linesOf(text).map(bare);
+  const { inside } = fenced(lines);
+  return lines.some(
+    (line, index) =>
+      inside[index] === undefined &&
+      !INDENTED_CODE.test(line) &&
+      IMPORTS_AGENTS.test(line.replace(CODE_SPAN, " ")),
+  );
+};
+
+/**
+ * A file's scan, a block the lock pins there that a code fence hides among
+ * its errors, since ogham would miss the block it placed.
+ * @param {string} file
+ * @param {string} text
+ * @param {readonly string[]} pinned the files whose block the lock pins
+ */
+const scanned = (file, text, pinned) => {
+  const scan = scanBlocks(file, text);
+  const { span, hidden, errors } = scan;
+  return pinned.includes(file) && span === undefined && hidden !== undefined
+    ? { ...scan, errors: [...errors, `${hidden}; the lock pins a block here.`] }
+    : scan;
+};
 
 /**
  * The three blocks, each from its opening marker to its closing marker,
@@ -132,9 +166,11 @@ export const withBlock = (text, block) => {
   if (span !== undefined) {
     const lines = linesOf(text);
     const last = lines[span.end] ?? "";
+    // A byte-order mark before a block on the first line stays.
+    const mark = span.start === 0 && text.startsWith("\uFEFF") ? "\uFEFF" : "";
     return [
       ...lines.slice(0, span.start),
-      `${placed}${last.slice(bare(last).length)}`,
+      `${mark}${placed}${last.slice(bare(last).length)}`,
       ...lines.slice(span.end + 1),
     ].join("");
   }
@@ -165,7 +201,8 @@ export const withoutBlock = (text) => {
   const kept = endsBare
     ? [...before.slice(0, -1), ...before.slice(-1).map(bare)]
     : before;
-  return [...kept, ...lines.slice(to + 1)].join("");
+  const mark = from === 0 && text.startsWith("\uFEFF") ? "\uFEFF" : "";
+  return `${mark}${[...kept, ...lines.slice(to + 1)].join("")}`;
 };
 
 /**
@@ -181,7 +218,7 @@ const targets = (blocks, contents, pinned) => {
   const claude = contents.get(CLAUDE_FILE);
   const claudeGetsBlock =
     claude !== undefined &&
-    (pinned.includes(CLAUDE_FILE) || !IMPORTS_AGENTS.test(claude));
+    (pinned.includes(CLAUDE_FILE) || !importsAgents(claude));
   /** @type {readonly (readonly [string, string])[]} */
   const all = [
     [AGENTS_FILE, blocks.agents],
@@ -228,7 +265,7 @@ export const placement = ({
     pinned,
   ).map(([file, block]) => {
     const text = contents.get(file) ?? "";
-    const { span, errors, unclosed } = scanBlocks(file, text);
+    const { span, errors, unclosed } = scanned(file, text, pinned);
     const problems =
       errors.length > 0 || span !== undefined || unclosed === undefined
         ? errors
@@ -292,7 +329,7 @@ export const removal = ({ contents, pinned, created, lines }) => {
     const text = contents.get(file);
     if (text === undefined) return [];
     const { errors } = withBlocks.includes(file)
-      ? scanBlocks(file, text)
+      ? scanned(file, text, pinned)
       : { errors: [] };
     const rest = lines
       .filter((line) => line.file === file)

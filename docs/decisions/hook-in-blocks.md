@@ -117,3 +117,14 @@ hash unchanged runs Prettier itself rather than trusting the ignore markers.
 a link (`bootstrap-shape.md`). Where ogham would write a `CLAUDE.md` or
 `AGENTS.md` that git ignores, it refuses, as for any path it writes. Both
 leave the repo as it was.
+
+**2026-10-15 update: code fences, and a block a fence hides.** A fence
+counts at any indentation, and a backtick fence's info string holds no
+backtick, as CommonMark has it. A file that ends inside an open fence stops a
+run that would append a block. Where the lock pins a block in a file and its
+ogham markers sit only inside a fence, `update` (with `--force` too) and
+`remove` stop, naming the fence's line, so a placed block is never left
+behind or doubled; a repo that deleted that block and shows the markers in a
+fence is stopped too. The `@AGENTS.md` import is not read in a fenced or
+indented code block or an inline code span. In `ogham.local.md`, an `og-`
+after a `/`, or before a `.` and an extension, is not a citation.

@@ -277,14 +277,18 @@ test("an AGENTS.md whose ogham end marker sits past byte 32,768 gets a warning n
   );
 });
 
-test("a large AGENTS.md whose block still ends inside the limit gets no warning", async (t) => {
-  const root = fixtureRepo(t, { ...GO_REPO, "AGENTS.md": filler(20_000) });
+test("an AGENTS.md past 32,768 bytes whose block ends inside the limit gets no warning", async (t) => {
+  const root = fixtureRepo(t, {
+    ...GO_REPO,
+    "AGENTS.md": `# Agents\n\n${BEGIN}\nold\n${END}\n\n${filler(40_000)}`,
+  });
 
   const outcome = install(ioFor(root), shipped);
 
   succeeded(outcome);
-  assert.ok(endOffset(read(root, AGENTS_FILE)) < READ_LIMIT);
-  assert.ok(read(root, AGENTS_FILE).length > 20_000);
+  const agents = read(root, AGENTS_FILE);
+  assert.ok(endOffset(agents) < READ_LIMIT);
+  assert.ok(Buffer.byteLength(agents, "utf8") > READ_LIMIT);
   assert.doesNotMatch(printed(outcome), /ends at byte/);
   commitAll(root, "adopt ogham");
   assert.deepEqual(await readWarnings(root), []);
@@ -508,6 +512,102 @@ test("ogham markers inside a fenced code block are text, not a block", (t) => {
   assert.ok(read(root, AGENTS_FILE).startsWith(`${own}\n${BEGIN}\n`));
   succeeded(remove(ioFor(root)));
   assert.equal(read(root, AGENTS_FILE), own);
+});
+
+test("ogham markers inside a tilde fence, or a fence indented four spaces in a nested list, are text", (t) => {
+  for (const own of [
+    `# Agents\n\n~~~md\n${BEGIN}\n${END}\n~~~\n`,
+    `- Item\n  - Nested\n\n    \`\`\`md\n    ${BEGIN}\n    example\n    ${END}\n    \`\`\`\n`,
+  ]) {
+    const root = adopted(t, { ...GO_REPO, "AGENTS.md": own });
+
+    assert.ok(read(root, AGENTS_FILE).startsWith(`${own}\n${BEGIN}\n`), own);
+    succeeded(remove(ioFor(root)));
+    assert.equal(read(root, AGENTS_FILE), own);
+  }
+});
+
+test("a line that opens and closes inline code with three backticks is not a fence", (t) => {
+  const own = "# Agents\n\n```npm test``` runs the tests.\n";
+  const root = adopted(t, { ...GO_REPO, "AGENTS.md": own });
+
+  assert.ok(read(root, AGENTS_FILE).startsWith(`${own}\n${BEGIN}\n`));
+  succeeded(remove(ioFor(root)));
+  assert.equal(read(root, AGENTS_FILE), own);
+});
+
+test("an AGENTS.md that ends inside an open code fence stops install, naming the line the fence opens at", (t) => {
+  const own = "# Agents\n\n```sh\nnpm test\n";
+  const root = fixtureRepo(t, { ...GO_REPO, "AGENTS.md": own });
+
+  const outcome = install(ioFor(root), shipped);
+
+  assert.equal(outcome.code, 1);
+  assert.match(
+    printed(outcome),
+    /AGENTS\.md:3 opens a code fence that never closes, so a block added at its end would sit inside it/,
+  );
+  assert.match(printed(outcome), /Nothing was written/);
+  assert.equal(read(root, AGENTS_FILE), own);
+  assert.equal(status(root), "");
+});
+
+for (const [name, wrap] of /** @type {const} */ ([
+  [
+    "an unclosed fence above it",
+    (/** @type {string} */ text) =>
+      text.replace("# Agents\n\n", "# Agents\n\n```sh\n"),
+  ],
+  [
+    "a fence around it",
+    (/** @type {string} */ text) =>
+      `${text.replace("# Agents\n\n", "# Agents\n\n```sh\n")}\`\`\`\n`,
+  ],
+])) {
+  test(`a pinned block hidden by ${name} stops remove and update --force, naming the fence's line, and nothing is written`, (t) => {
+    const root = adopted(t, { ...GO_REPO, "AGENTS.md": "# Agents\n" });
+    const hidden = wrap(read(root, AGENTS_FILE));
+    writeFiles(root, { "AGENTS.md": hidden });
+    commitAll(root, "fence the block");
+
+    for (const outcome of [
+      remove(ioFor(root)),
+      update(ioFor(root), shippedAt("9.9.9"), true),
+    ]) {
+      assert.equal(outcome.code, 1, printed(outcome));
+      assert.match(
+        printed(outcome),
+        /AGENTS\.md:3 opens a code fence that hides the ogham marker at line 4/,
+      );
+      assert.match(printed(outcome), /Nothing was written/);
+    }
+    assert.equal(read(root, AGENTS_FILE), hidden);
+    assert.equal(status(root), "");
+  });
+}
+
+for (const [name, claude] of /** @type {const} */ ([
+  ["a fenced code block", "# Notes\n\n```\n@AGENTS.md\n```\n"],
+  ["an indented code block", "# Notes\n\n    @AGENTS.md\n"],
+  ["an inline code span", "# Notes\n\nWrite `see @AGENTS.md first` there.\n"],
+])) {
+  test(`a CLAUDE.md whose only @AGENTS.md sits in ${name} does not import it, and gets the Claude block`, (t) => {
+    const root = fixtureRepo(t, { ...GO_REPO, "CLAUDE.md": claude });
+
+    succeeded(install(ioFor(root), shipped));
+
+    assert.ok(read(root, "CLAUDE.md").startsWith(`${claude}\n${BEGIN}\n`));
+    assert.ok(lockOf(root).blocks["CLAUDE.md"]);
+  });
+}
+
+test("remove keeps an empty AGENTS.md the repo had before install", (t) => {
+  const root = adopted(t, { ...GO_REPO, "AGENTS.md": "" });
+  assert.deepEqual(lockOf(root).added.files, ["CLAUDE.md"]);
+
+  succeeded(remove(ioFor(root)));
+
+  assert.equal(read(root, AGENTS_FILE), "");
 });
 
 test("an existing ogham.local.md is never rewritten by install, update or remove", (t) => {
@@ -810,6 +910,42 @@ test("the local layer's check reads IDs from the core and the file it is given",
   assert.deepEqual(localProblems("og-zz\n", undefined), []);
 });
 
+test("an og- inside a URL or a file name is not a citation; one at a sentence's end is", () => {
+  const core = "- **`og-a`** Rule a.\n";
+
+  assert.deepEqual(
+    localProblems(
+      "See https://example.com/og-image.png and og-notes.md.\n",
+      core,
+    ),
+    [],
+  );
+  assert.deepEqual(localProblems("Then see og-no-hidden-inputs.\n", core), [
+    "ogham.local.md:1 cites og-no-hidden-inputs, which the core does not define.",
+  ]);
+});
+
+test("the local layer's code-level exception reads true in any language, with the lint disable only as an example", () => {
+  assert.match(
+    LOCAL_TEMPLATE,
+    /It is a comment at the spot, `og-<id>: <effect>; <reason>`\./,
+  );
+  assert.match(
+    LOCAL_TEMPLATE,
+    /for example, in TypeScript, `eslint-disable-next-line ogham\/<rule> -- og-<id>: <effect>; <reason>`/,
+  );
+  assert.match(LOCAL_TEMPLATE, /a plain comment otherwise\./);
+});
+
+test("the agents block tells an agent that does not follow imports to read the local layer", () => {
+  const { agents } = renderBlocks(shipped.templates, CORE, []);
+
+  assert.match(
+    agents,
+    /^- \*\*This repo's own layer:\*\* `ogham\.local\.md` .* Read it before writing or reviewing code\.$/m,
+  );
+});
+
 test("the shipped local-layer template passes the check against the shipped core", () => {
   assert.deepEqual(localProblems(LOCAL_TEMPLATE, CORE), []);
   for (const heading of ["## Tightenings", "## Local rules", "## Exemptions"]) {
@@ -844,16 +980,40 @@ test("a block already in the text is replaced where it stands, keeping what is a
   assert.equal(withoutBlock(text), "top\n\nbottom\n");
 });
 
+test("a block on the first line of a file with a byte-order mark keeps the mark when replaced or taken out", () => {
+  const text = `\uFEFF${BEGIN}\nold\n${END}\n\nrest\n`;
+
+  assert.equal(
+    withBlock(text, `${BEGIN}\nnew\n${END}`),
+    `\uFEFF${BEGIN}\nnew\n${END}\n\nrest\n`,
+  );
+  assert.equal(withoutBlock(text), "\uFEFFrest\n");
+});
+
+test("the scan names a code fence left open at the end, and inline code is no fence", () => {
+  assert.equal(
+    scanBlocks("F.md", "a\n```sh\nb\n").unclosed,
+    "F.md:2 opens a code fence that never closes",
+  );
+  assert.equal(scanBlocks("F.md", "```a``` b\n").unclosed, undefined);
+  assert.equal(
+    scanBlocks("F.md", `\`\`\`a\`\`\` b\n${BEGIN}\n${END}\n`).span?.start,
+    1,
+  );
+});
+
 test("the scan finds the one block, and reports each broken marker by line", () => {
   assert.deepEqual(scanBlocks("F.md", `a\n${BEGIN}\nb\n${END}\n`), {
     span: { start: 1, end: 3 },
     errors: [],
     unclosed: undefined,
+    hidden: undefined,
   });
   assert.deepEqual(scanBlocks("F.md", "a\n"), {
     span: undefined,
     errors: [],
     unclosed: undefined,
+    hidden: undefined,
   });
   assert.deepEqual(
     scanBlocks("F.md", `${BEGIN}\n${BEGIN}\n${END}\n${END}\n`).errors,

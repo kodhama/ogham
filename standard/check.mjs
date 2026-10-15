@@ -89,10 +89,11 @@ export const READ_LIMIT = 32 * 1024;
 
 /**
  * What a file's markers say: its ogham block, if it has one; each broken
- * ogham marker, as a line naming the file and line number; and a block of
- * another tool still open at the end of the file, which a block appended
- * there would land inside.
- * @typedef {{ readonly span: Span | undefined, readonly errors: readonly string[], readonly unclosed: string | undefined }} Scan
+ * ogham marker, as a line naming the file and line number; a code fence or a
+ * block of another tool still open at the end of the file, which a block
+ * appended there would land inside; and the first ogham marker a code fence
+ * hides.
+ * @typedef {{ readonly span: Span | undefined, readonly errors: readonly string[], readonly unclosed: string | undefined, readonly hidden: string | undefined }} Scan
  */
 
 /**
@@ -220,25 +221,29 @@ export const lineBreak = (text) => (text.includes("\r\n") ? "\r\n" : "\n");
 // begin may carry a note after the word, as Trellis's does.
 const MARKER = /^<!--\s*([\w.:-]+?):(begin|end)\b[^>]*-->$/u;
 const OGHAM = "ogham";
-const FENCE = /^ {0,3}(`{3,}|~{3,})/u;
+// A fence at any indentation, as reading too little as fenced overwrites a
+// documented marker. A backtick fence's info string holds no backtick.
+const FENCE = /^\s*(`{3,}(?!.*`)|~{3,})/u;
 
 /**
- * Whether each line is part of a fenced code block, its fence lines
- * included. What a fence shows is text, never a marker or a rule.
+ * For each line of a fenced code block, its fence lines included, the index
+ * of the line that opens it; and the fence still open at the end, if any.
+ * What a fence shows is text, never a marker or a rule.
  * @param {readonly string[]} lines the lines without their breaks
- * @returns {readonly boolean[]}
+ * @returns {{ readonly inside: readonly (number | undefined)[], readonly open: number | undefined }}
  */
-const fenced = (lines) => {
-  /** @type {boolean[]} */
+export const fenced = (lines) => {
+  /** @type {(number | undefined)[]} */
   const inside = [];
   let open = "";
-  for (const line of lines) {
+  let from = 0;
+  for (const [index, line] of lines.entries()) {
     const fence = FENCE.exec(line)?.[1];
     if (open === "") {
-      if (fence !== undefined) open = fence;
-      inside.push(fence !== undefined);
+      if (fence !== undefined) [open, from] = [fence, index];
+      inside.push(fence === undefined ? undefined : index);
     } else {
-      inside.push(true);
+      inside.push(from);
       const closes =
         fence !== undefined &&
         fence[0] === open[0] &&
@@ -247,7 +252,7 @@ const fenced = (lines) => {
       if (closes) open = "";
     }
   }
-  return inside;
+  return { inside, open: open === "" ? undefined : from };
 };
 
 /**
@@ -259,7 +264,7 @@ const fenced = (lines) => {
  */
 export const scanBlocks = (file, text) => {
   const lines = linesOf(text).map(bare);
-  const inFence = fenced(lines);
+  const { inside: inFence, open: fence } = fenced(lines);
   /** @type {string[]} */
   const errors = [];
   /** @type {{ name: string, line: number }[]} */
@@ -268,10 +273,18 @@ export const scanBlocks = (file, text) => {
   let begin;
   /** @type {Span | undefined} */
   let span;
+  /** @type {string | undefined} */
+  let hidden;
   lines.forEach((line, index) => {
-    const marker = inFence[index] ? null : MARKER.exec(line.trim());
+    const marker = MARKER.exec(line.trim());
     if (!marker) return;
     const [, name = "", edge] = marker;
+    const opener = inFence[index];
+    if (opener !== undefined) {
+      if (name === OGHAM)
+        hidden ??= `${file}:${opener + 1} opens a code fence that hides the ogham marker at line ${index + 1}`;
+      return;
+    }
     const at = `${file}:${index + 1}`;
     if (name !== OGHAM) {
       if (edge === "begin") others.push({ name, line: index + 1 });
@@ -313,9 +326,12 @@ export const scanBlocks = (file, text) => {
     span,
     errors,
     unclosed:
-      open === undefined
-        ? undefined
-        : `${file}:${open.line} opens a ${open.name} block that never closes`,
+      fence !== undefined
+        ? `${file}:${fence + 1} opens a code fence that never closes`
+        : open === undefined
+          ? undefined
+          : `${file}:${open.line} opens a ${open.name} block that never closes`,
+    hidden,
   };
 };
 
@@ -384,7 +400,8 @@ export const sizeWarning = (text) => {
 
 const CORE_ENTRY = /^- \*\*`(og-[a-z0-9]+(?:-[a-z0-9]+)*)`\*\*/u;
 const LOCAL_ENTRY = /^- \*\*`?(local-[a-z0-9]+(?:-[a-z0-9]+)*)`?\*\*/u;
-const OG_REFERENCE = /(?<![\w-])og-[a-z0-9]+(?:-[a-z0-9]+)*/gu;
+// An `og-` after a `/`, or before a `.` and an extension, is no citation.
+const OG_REFERENCE = /(?<![\w/-])og-[a-z0-9]+(?:-[a-z0-9]+)*(?![\w-]|\.\w)/gu;
 
 /**
  * What is wrong in the repo's local layer: each `og-` ID it cites that the
@@ -416,9 +433,10 @@ export const localProblems = (local, core) => {
             !defined.has(id) &&
             cited.findIndex((other) => other.id === id) === at,
         );
-  const inFence = fenced(lines);
+  const inFence = fenced(lines).inside;
   const locals = lines.flatMap((line, index) => {
-    const id = inFence[index] ? undefined : LOCAL_ENTRY.exec(line)?.[1];
+    const id =
+      inFence[index] === undefined ? LOCAL_ENTRY.exec(line)?.[1] : undefined;
     return id === undefined ? [] : [{ id, line: index + 1 }];
   });
   return [
