@@ -146,6 +146,8 @@ ogham markers, as `remove` does, so a `CLAUDE.md` that imports `AGENTS.md`,
 and so gets no block, stops the run on them too; it is still not written. A
 whole ogham block in such a file is left as it is and not pinned, and
 `remove` takes it out, as it does in every file a block can go in. Where
-git ignores a file whose block the lock would pin, `install` and `update`
-refuse even when the file already holds that block and nothing is written to
-it.
+git ignores a file whose block the lock would pin, `install`, and an
+`update` that changes any file or the lock, refuse even when the file
+already holds that block and nothing is written to it. An `update` at the
+same version that finds nothing to change writes nothing and asks git about
+no path, for an owned file as for a block.
