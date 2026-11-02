@@ -41,7 +41,7 @@ source_type = "git"
 source = "https://github.com/kodhama/grove.git"
 ```
 
-**Write for a reader with ADD.** Applies to anything the maintainer reads:
+**Write for a reader who skims.** Applies to anything the maintainer reads:
 chat, reports, PRs, issues and comments.
 
 - First line = the point, and what the maintainer needs to do (if anything).
