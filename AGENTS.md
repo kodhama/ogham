@@ -35,10 +35,6 @@ source = "https://github.com/EveryInc/compound-engineering-plugin.git"
 [marketplaces.kodhama]
 source_type = "git"
 source = "https://github.com/kodhama/stewards.git"
-
-[marketplaces.grove]
-source_type = "git"
-source = "https://github.com/kodhama/grove.git"
 ```
 
 **Write for a reader who skims.** Applies to anything the maintainer reads:

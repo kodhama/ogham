@@ -11,17 +11,10 @@
         "source": "github",
         "repo": "EveryInc/compound-engineering-plugin"
       }
-    },
-    "grove": {
-      "source": {
-        "source": "github",
-        "repo": "kodhama/grove"
-      }
     }
   },
   "enabledPlugins": {
     "trellis@kodhama": true,
-    "compound-engineering@compound-engineering-plugin": true,
-    "grove@grove": true
+    "compound-engineering@compound-engineering-plugin": true
   }
 }

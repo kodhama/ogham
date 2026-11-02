@@ -8,6 +8,3 @@ enabled = true
 
 [plugins."trellis@kodhama"]
 enabled = true
-
-[plugins."grove@grove"]
-enabled = true
